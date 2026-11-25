@@ -2,7 +2,7 @@
 
 This repository's own code is MIT-licensed (see `LICENSE`). It vendors no third-party code and uses **no PyPI packages**:
 the scripts need only the Python standard library plus PyYAML (process-model files), pypdf (pure-Python PDF engine) and the
-poppler `pdftotext` command, all installed from Debian packages when the source repository's Docker image is built (`docker/Dockerfile` in the repository; not part of the packaged skill). Licenses are as published
+poppler `pdftotext` command, all installed from Debian packages when the source repository's Docker image is built (`dev/docker/Dockerfile` in the repository; not part of the packaged skill). Licenses are as published
 by Debian/upstream at the time of writing; verify before redistributing an image.
 
 | Component | Used for | License | Where |
@@ -24,7 +24,7 @@ by Debian/upstream at the time of writing; verify before redistributing an image
 
 ## Notes
 - The licenses of the optional/pdfplumber packages above were read from the package metadata (`importlib.metadata`) inside the `chat-env-v2` image, not copied from memory; LibreOffice's from its Debian copyright file.
-- `chat-env-v2` is a test replica of the Claude chat sandbox; the default image (`docker/Dockerfile`) does not contain pdfplumber, LibreOffice or any PyPI package.
+- `chat-env-v2` is a test replica of the Claude chat sandbox; the default image (`dev/docker/Dockerfile`) does not contain pdfplumber, LibreOffice or any PyPI package.
 - poppler is GPL, but the scripts call it only through the command line (`subprocess`), so it does not affect the MIT
   license of this repository. If you redistribute a Docker image built from this repo, the image contains GPL software
   (poppler) and you must comply with the GPL for that part (Debian provides the corresponding source).

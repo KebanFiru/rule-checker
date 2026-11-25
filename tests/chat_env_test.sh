@@ -3,12 +3,13 @@
 # with each primary PDF engine by calling `python3 scripts/x.py` directly (tests/run_deterministic.sh), then prints a version
 # table, the scorer results, and a classified comparison. Run from the repo root: bash tests/chat_env_test.sh
 set -uo pipefail
+rc=0   # becomes 1 on any failed run, failure marker in a log, or (b)/(c) difference
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$REPO"
 OUT=tests/_out; rm -rf "$OUT"; mkdir -p "$OUT"
 IMAGES=(chat-env chat-env-v2); ENGINES=(pdftotext pypdf)
 for i in "${IMAGES[@]}"; do
-  f="docker/$i.Dockerfile"; [ "$i" = chat-env ] && f="docker/chat-env.Dockerfile"
-  docker image inspect "rule-check:$i" >/dev/null 2>&1 || docker build -q -f "$f" -t "rule-check:$i" docker >/dev/null || exit 1
+  f="dev/docker/$i.Dockerfile"
+  docker image inspect "rule-check:$i" >/dev/null 2>&1 || docker build -q -f "$f" -t "rule-check:$i" dev/docker >/dev/null || exit 1
 done
 FLAGS="--rm --network none --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /tmp --user $(id -u):$(id -g) -e HOME=/tmp -e PYTHONDONTWRITEBYTECODE=1"
 echo "== version table (target = measured in the Claude chat sandbox) =="
@@ -21,9 +22,10 @@ echo; echo "== runs (scripts called directly with python3, hardened container, n
 for i in "${IMAGES[@]}"; do for e in "${ENGINES[@]}"; do
   d="$OUT/${i}_$e"; mkdir -p "$d"
   docker run $FLAGS -e ENGINE=$e -v "$REPO":/skill:ro,z -v "$REPO/$d":/work:z -w /work "rule-check:$i" bash /skill/tests/run_deterministic.sh /work > "$d.log" 2>&1
-  printf '%-22s exit=%s  scenario summaries FULL: %s/2  ✗ lines: %s  DOCX visual: %s\n' "$i/$e" $? "$(grep -c 'SUMMARY: FULL' "$d.log")" "$(grep -c '✗' "$d.log")" "$(grep -E 'Visual pass: DOCX|visual pass skipped' "$d.log" | head -1 | cut -c1-70)"
+  status=$?; bash "$REPO/tests/assert_clean.sh" "$d.log" >/dev/null || { echo "  !! $i/$e: failure markers in $d.log"; rc=1; }; [ $status -eq 0 ] || rc=1
+  printf '%-22s exit=%s  scenario summaries FULL: %s/2  ✗ lines: %s  DOCX visual: %s\n' "$i/$e" $status "$(grep -c 'SUMMARY: FULL' "$d.log")" "$(grep -c '✗' "$d.log")" "$(grep -E 'Visual pass: DOCX|visual pass skipped' "$d.log" | head -1 | cut -c1-70)"
 done; done
-cmp() { echo; echo "== $1 vs $2 =="; python3 tests/compare_runs.py "$OUT/$1" "$OUT/$2" --log-a "$OUT/$1.log" --log-b "$OUT/$2.log"; }
+cmp() { echo; echo "== $1 vs $2 =="; python3 tests/compare_runs.py "$OUT/$1" "$OUT/$2" --log-a "$OUT/$1.log" --log-b "$OUT/$2.log" || rc=1; }
 cmp chat-env_pdftotext chat-env-v2_pdftotext
 cmp chat-env_pypdf chat-env-v2_pypdf
 cmp chat-env-v2_pdftotext chat-env-v2_pypdf
@@ -31,7 +33,7 @@ echo; echo "== LibreOffice-made PDFs (built in v2) read by BOTH images: 2 PDFs x
 mkdir -p "$OUT/lo_pdfs"; cp "$OUT/chat-env-v2_pdftotext/s1docx/pdf/target_srs.pdf" "$OUT/chat-env-v2_pdftotext/s1docx/stress/pdf/stress.pdf" "$OUT/lo_pdfs/" 2>/dev/null
 for i in "${IMAGES[@]}"; do mkdir -p "$OUT/lo_$i"
   docker run $FLAGS -v "$REPO":/skill:ro,z -v "$REPO/$OUT":/work:z -w /work "rule-check:$i" bash /skill/tests/run_pdf_only.sh /work/lo_pdfs /work/lo_$i | sed "s/^/  $i: /"; done
-python3 tests/compare_runs.py "$OUT/lo_chat-env" "$OUT/lo_chat-env-v2"
+python3 tests/compare_runs.py "$OUT/lo_chat-env" "$OUT/lo_chat-env-v2" || rc=1
 echo; echo "== engine-disagreement warnings (PDFs with a second opinion) =="
 python3 - <<'PY'
 import sys; sys.path.insert(0, "tests")
@@ -41,3 +43,5 @@ for d in sorted(pathlib.Path("tests/_out").iterdir()):
     if d.is_dir() and not d.name.startswith("lo_pdfs"):
         n, k = engine_warnings(d); print(f"  {d.name:24s} PDFs checked: {n:2d}  disagreement warnings: {k}")
 PY
+echo; [ $rc -eq 0 ] && echo "RESULT: all checks passed" || echo "RESULT: FAILURES (see above)"
+exit $rc

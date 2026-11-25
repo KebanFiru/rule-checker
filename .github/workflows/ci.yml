@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"        # weekly (Monday 04:17 UTC): catches upstream changes in the Debian/Ubuntu base images
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast check on every push and pull request: both scenarios end to end in the regular image
+  # (rule check + process model/regression, extraction, xref, matrix verify, diff, impact, invariants, scorers).
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make test
+
+  # Slower check (builds a LibreOffice image): replicas of the Claude chat sandbox, both PDF engines, classified comparison.
+  # Not run on pull requests; runs on main, tags, weekly and on demand.
+  chat-env:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make chat-env-test
+
+  # Release: on a v* tag, build dist/rule-check.zip and attach it to a GitHub Release.
+  package:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, chat-env]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make package
+      - name: Check the package contents
+        run: |
+          unzip -l dist/rule-check.zip
+          ! unzip -Z1 dist/rule-check.zip | grep -E '^rule-check/(dev|docker|tests|\.github)/' \
+            || { echo "repository tooling leaked into the package"; exit 1; }
+          unzip -Z1 dist/rule-check.zip | grep -qx 'rule-check/SKILL.md'
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/rule-check.zip --title "$GITHUB_REF_NAME" --generate-notes

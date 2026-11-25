@@ -1,12 +1,12 @@
 # Test scenarios
 
-Everything runs inside Docker via `scripts/run.sh`. Run from the `tests/` directory. Fixture generation needs the
+Everything runs inside Docker via `dev/run.sh`. Run from the `tests/` directory. Fixture generation needs the
 *test* image (adds Pillow and ReportLab from Debian packages): `RULE_CHECK_TARGET=test`. The DOCX fixtures are written by
 `tests/docx_mini.py` (standard library only).
 
 ## 1. Rule-check scenario (`run/`)
 ```bash
-cd tests; R=../scripts/run.sh
+cd tests; R=../dev/run.sh
 RULE_CHECK_TARGET=test $R python /skill/tests/make_fixtures.py fixtures    # rules.pdf (25 rules), target_srs.pdf, review.docx, expected.json
 $R python /skill/scripts/extract.py fixtures/target_srs.pdf fixtures/rules.pdf fixtures/review.docx --docx-source fixtures/review.docx -o run/ex
 $R python /skill/tests/build_rules.py run/ex/rules.txt run/rules.json rules.pdf
@@ -19,7 +19,7 @@ The target has 12 deliberate rule violations, 3 broken cross-references and 2 sc
 
 ## 2. Process model / regression scenario (`run2/`, `fixtures/process/`)
 ```bash
-cd tests; R=../scripts/run.sh
+cd tests; R=../dev/run.sh
 RULE_CHECK_TARGET=test $R python /skill/tests/make_fixtures_process.py     # process_v1/v2.pdf|docx + expected_v2.json
 $R python /skill/scripts/extract.py fixtures/process/process_v1.pdf fixtures/process/process_v2.pdf -o run2/ex
 # starting model: fixtures/process/model_v1/ (process_model.yaml, invariants.yaml, rules.json)
@@ -40,12 +40,12 @@ session only `fixtures/*.pdf|docx` and run the skill.
 
 ## 3. Chat-environment replicas (no Docker wrapper inside)
 `bash tests/chat_env_test.sh` (or `make chat-env-test`) builds two images and runs both scenarios in each, once per primary PDF engine
-(`pdftotext`, `pypdf`), by calling `python3 scripts/x.py` directly (`tests/run_deterministic.sh`; no `run.sh`, no `python` alias):
+(`pdftotext`, `pypdf`), by calling `python3 scripts/x.py` directly (`tests/run_deterministic.sh`; no `dev/run.sh`, no `python` alias):
 
 | image | Python | pypdf | PyYAML | pdfplumber | poppler | LibreOffice |
 |---|---|---|---|---|---|---|
-| `chat-env` (`docker/chat-env.Dockerfile`, Debian 13) | 3.13.5 | 5.4.0 | 6.0.2 | – | 25.03.0 | – |
-| `chat-env-v2` (`docker/chat-env-v2.Dockerfile`, Ubuntu 24.04 + uv) | 3.13.18 | 6.17.0 | 6.0.3 | 0.11.10 | 24.02.0 | 24.2.7.2 |
+| `chat-env` (`dev/docker/chat-env.Dockerfile`, Debian 13) | 3.13.5 | 5.4.0 | 6.0.2 | – | 25.03.0 | – |
+| `chat-env-v2` (`dev/docker/chat-env-v2.Dockerfile`, Ubuntu 24.04 + uv) | 3.13.18 | 6.17.0 | 6.0.3 | 0.11.10 | 24.02.0 | 24.2.7.2 |
 
 `tests/compare_runs.py` classifies every output file: identical, expected environment difference (DOCX visual pass, `--tables`,
 environment report, engine metadata), (a) text-extraction-only, (b) finding/verdict difference, (c) script error, and counts the
