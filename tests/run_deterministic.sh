@@ -54,6 +54,9 @@ sc matrix.py coverage s1/rules.json s1/results.json -o s1/coverage_env.md --env 
 sc matrix.py verify s1/rules.json s1/report_env.md
 grep -E "^(Visual pass|⏭️)" s1/report_env.md || true
 
+echo; echo "### engine cross-check controls"
+python3 "$REPO/tests/check_engine_warning.py"
+
 echo; echo "### scenario 2: process model / regression"
 sc extract.py "$P/process_v1.pdf" "$P/process_v2.pdf" "${EA[@]}" -o s2/ex
 sc doc_diff.py "$P/process_v1.pdf" "$P/process_v2.pdf" -o s2/diff.json >/dev/null

@@ -141,7 +141,34 @@ def pdf_raw_pages(path):
 
 
 def norm_tokens(lines):
-    return re.findall(r"\w+", " ".join(lines).lower())
+    """Tokens for the engine comparison. Hyphens are removed first: pdftotext's non-layout modes join end-of-line hyphenation
+    ("e-" + "mail" -> "email") while pypdf keeps "e-mail"; that is normalization, not a content difference."""
+    s = ""
+    for l in lines:                                   # a line ending in "-" continues without a space: "e-" + "mail" -> "email"
+        s += l if s.endswith("-") else (" " + l)
+    return re.findall(r"\w+", s.lower().replace("-", ""))
+
+
+SPLIT_RX = re.compile(r"\b([A-Z]) ([a-z]{2,})\b")
+
+
+def repair_splits(pages, other_pages):
+    """Re-join kerning artifacts like 'T able' -> 'Table' (seen with pypdf 5.4 in content-order mode on LibreOffice PDFs; fixed in
+    pypdf 6.x) using the OTHER engine as evidence: only when the other engine has the joined word and does not contain the split form,
+    so text on which both engines agree is never touched. Returns a list of {page, from, to}."""
+    repairs = []
+    for pi, lines in enumerate(pages):
+        other = " ".join(other_pages[pi]) if pi < len(other_pages) else ""
+        vocab = set(re.findall(r"[^\W\d_]+", other.lower()))
+        for li, line in enumerate(lines):
+            def fix(m):
+                joined = m.group(1) + m.group(2)
+                if joined.lower() in vocab and m.group(0) not in other:
+                    repairs.append({"page": pi + 1, "from": m.group(0), "to": joined})
+                    return joined
+                return m.group(0)
+            lines[li] = SPLIT_RX.sub(fix, line)
+    return repairs
 
 
 def compare_engines(a, b):
@@ -269,6 +296,11 @@ def main():
                 second_name = "pdftotext" if have_pdftotext else None
                 second = pdf_pages(f, "reading" if a.reading_order else "layout") if have_pdftotext else None
             meta["engines"] = {"primary": a.engine, "second_opinion": second_name, "versions": engine_versions()}
+            if second is not None:
+                rep_p, rep_s = repair_splits(pages, second), repair_splits(second, pages)
+                if rep_p or rep_s:
+                    meta["repairs"] = {"primary": rep_p, "second_opinion": rep_s}
+                    print(f"  NOTE: re-joined {len(rep_p)} split word(s) in the {a.engine} text and {len(rep_s)} in the {second_name} text using the other engine as evidence (e.g. {(rep_p + rep_s)[0]['from']!r} -> {(rep_p + rep_s)[0]['to']!r}); see meta 'repairs'")
             meta["pages"] = len(pages)
             empty = [i + 1 for i, p in enumerate(pages) if not p]
             if empty:

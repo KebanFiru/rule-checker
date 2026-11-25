@@ -136,9 +136,9 @@ def cmd_verify(a):
     text = Path(a.report).read_text(encoding="utf-8")
     rows = re.findall(r"^\|\s*(R-\d+)\s*\|([^\n]*)$", text, re.M)
     # count only the coverage section: the first table after the "Coverage" heading
-    m = re.search(r"^#+\s*[^\n]*[Cc]overage[^\n]*\n(.*?)(?=\n#+\s|\Z)", text, re.S | re.M)
+    m = re.search(r"^#+\s*[^\n]*(?:[Cc]overage|[Kk]apsama)[^\n]*\n(.*?)(?=\n#+\s|\Z)", text, re.S | re.M)   # English or Turkish heading
     if not m:
-        print("VERIFICATION FAILED — no 'Coverage' section heading found in the report"); sys.exit(1)
+        print("VERIFICATION FAILED — no 'Coverage' (or Turkish 'Kapsama') section heading found in the report"); sys.exit(1)
     sect = m.group(1)
     rows = re.findall(r"^\|\s*(R-\d+)\s*\|([^\n]*)$", sect, re.M)
     got = [r[0] for r in rows]; err = []

@@ -27,12 +27,17 @@ cmp() { echo; echo "== $1 vs $2 =="; python3 tests/compare_runs.py "$OUT/$1" "$O
 cmp chat-env_pdftotext chat-env-v2_pdftotext
 cmp chat-env_pypdf chat-env-v2_pypdf
 cmp chat-env-v2_pdftotext chat-env-v2_pypdf
+echo; echo "== LibreOffice-made PDFs (built in v2) read by BOTH images: 2 PDFs x 2 engines x 2 modes, plus id_index/xref_check =="
+mkdir -p "$OUT/lo_pdfs"; cp "$OUT/chat-env-v2_pdftotext/s1docx/pdf/target_srs.pdf" "$OUT/chat-env-v2_pdftotext/s1docx/stress/pdf/stress.pdf" "$OUT/lo_pdfs/" 2>/dev/null
+for i in "${IMAGES[@]}"; do mkdir -p "$OUT/lo_$i"
+  docker run $FLAGS -v "$REPO":/skill:ro,z -v "$REPO/$OUT":/work:z -w /work "rule-check:$i" bash /skill/tests/run_pdf_only.sh /work/lo_pdfs /work/lo_$i | sed "s/^/  $i: /"; done
+python3 tests/compare_runs.py "$OUT/lo_chat-env" "$OUT/lo_chat-env-v2"
 echo; echo "== engine-disagreement warnings (PDFs with a second opinion) =="
 python3 - <<'PY'
 import sys; sys.path.insert(0, "tests")
 from compare_runs import engine_warnings
 import pathlib
 for d in sorted(pathlib.Path("tests/_out").iterdir()):
-    if d.is_dir():
+    if d.is_dir() and not d.name.startswith("lo_pdfs"):
         n, k = engine_warnings(d); print(f"  {d.name:24s} PDFs checked: {n:2d}  disagreement warnings: {k}")
 PY
