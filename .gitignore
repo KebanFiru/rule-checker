@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+# regenerable test working output (fixtures/ and the sample reports are committed)
+tests/run/ex/
+tests/run2/ex/
+tests/cmp/
+tests/_out*
+tests/_o_*
+tests/_base/
+dist/

@@ -1,0 +1,38 @@
+# process_model.yaml schema (annotated). model_check.py enforces these rules.
+# REQUIRED: source on every process/step/parameter. Unsourced information does not enter the model.
+# Keep it short: do not copy sentences, record structure + values; but never drop a value/condition/exception.
+meta:
+  doc: process.pdf          # the document version the model was derived from
+  doc_version: "Rev 1"
+  model_version: 1          # incremented by model_check.py bump; do not edit by hand
+  updated: 2026-01-01
+processes:
+  - id: SP-7                # use the document's own ID if it has one
+    name: ...
+    source: {doc: ..., pages: [12, 13], ids: [UC-3.8]}      # required
+    actors: [student, coordinator, IRO]
+    entry_points: []        # optional; default is the first step. next/goto edges from other processes also count as entries
+    steps:
+      - id: SP-7.3                                           # required; using the document ID makes impact mapping easy
+        actor: coordinator                                   # required
+        action: "short, faithful to the document"            # required
+        inputs: [signed OLA]
+        outputs: [Recognition Sheet draft]
+        preconditions: ["OLA version 2 uploaded"]
+        duration: {value: 3, unit: working_days, param: P-reminder, default: true}  # if param is set, it must equal the value in parameters
+        next: [SP-7.4]                                       # outgoing edge; must be a defined step
+        on_exception: [{when: "rows differ", goto: SP-7.X1}] # goto must also be a defined step
+        terminal: false                                      # true = intentionally the last step (may have no exit)
+        allow_loop: false                                    # true = a cycle through this step is intentional (otherwise model_check reports the cycle as an error)
+        assumption: false                                    # true = not stated explicitly in the document, an assumption (source is still required)
+        rules: [R-014, R-022]                                # must exist in rules.json
+        screens: [S-6.3]
+        source: {page: 13, ids: [SP-7.3], quote: "≤15 words"}   # required; ids/quote are used by impact.py mapping
+    status_values: []       # state machine values, if any
+parameters:                 # durations, amounts, thresholds; in ONE place. The same id cannot be defined twice with different values
+  - {id: P-reminder, value: 3, unit: working_days, doc_unit: "working days|days", used_in: [SP-7.3, QR-6.4.1], source: {page: 12, quote: "3 working days"}}
+  # doc_unit: regex of the unit to look for in the document (for the param_equal invariant; defaults to unit)
+tbd:                        # unanswered by the reference / waiting for a team decision
+  - {id: D11, about: "...", blocks: [UC-5.4]}
+entities:
+  - {name: OLA, versions: [Before, During]}

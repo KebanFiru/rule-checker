@@ -1,0 +1,150 @@
+{
+  "R-001": {
+    "result": "✅",
+    "evidence": "target p1:L1 «Software Requirements Specification»"
+  },
+  "R-002": {
+    "result": "❌",
+    "evidence": "p1:L2 only «Rev 2»; no «Version X.Y»",
+    "target_loc": "p1:L2",
+    "issue": "Version is written «Rev 2»",
+    "fix": "Write «Version 2.0»",
+    "severity": "medium"
+  },
+  "R-003": {
+    "result": "✅",
+    "evidence": "p1:L3 «Author: Ali Veli»"
+  },
+  "R-004": {
+    "result": "❌",
+    "evidence": "p1:L4 «Date: 2026-03-14» (YYYY-MM-DD)",
+    "target_loc": "p1:L4",
+    "issue": "Date format is not DD.MM.YYYY",
+    "fix": "14.03.2026",
+    "severity": "low"
+  },
+  "R-005": {
+    "result": "✅",
+    "evidence": "p1:L9 «1. Introduction»"
+  },
+  "R-006": {
+    "result": "❌",
+    "evidence": "Headings 1–6 (Introduction, Glossary, Requirements, Use Cases, Screen Designs, Appendices); the word 'scope' does not occur anywhere in the document",
+    "target_loc": "whole document",
+    "issue": "No Scope section",
+    "fix": "Add a «Scope» section after the Introduction (content: TBD, team decides)",
+    "severity": "high"
+  },
+  "R-007": {
+    "result": "✅",
+    "evidence": "p1:L11 «2. Glossary»"
+  },
+  "R-008": {
+    "result": "✅",
+    "evidence": "FR-1…FR-6 (p1:L10-20) all carry FR-N identifiers"
+  },
+  "R-009": {
+    "result": "✅",
+    "evidence": "UC-1.1, UC-1.2, UC-2.1, UC-2.2 (p1:L23-33)"
+  },
+  "R-010": {
+    "result": "❌",
+    "evidence": "p1:L18 FR-5 «The system can provide reports»",
+    "target_loc": "p1:L18 FR-5",
+    "issue": "«can» is optional wording",
+    "fix": "«shall provide»",
+    "severity": "high"
+  },
+  "R-011": {
+    "result": "❌",
+    "evidence": "p1:L19 FR-6 «appropriate format … if needed … etc.»",
+    "target_loc": "p1:L19 FR-6",
+    "issue": "3 vague terms: appropriate/if needed/etc.",
+    "fix": "Write concrete format and condition (content: TBD team decision)",
+    "severity": "medium"
+  },
+  "R-012": {
+    "result": "❌",
+    "evidence": "p1:L15 FR-2 «at least 6 characters» ≠ 8",
+    "target_loc": "p1:L15 FR-2",
+    "issue": "Password length is 6",
+    "fix": "Make it 8",
+    "severity": "high"
+  },
+  "R-013": {
+    "result": "❌",
+    "evidence": "p1:L16 FR-3 «30 minutes» ≠ 15",
+    "target_loc": "p1:L16 FR-3",
+    "issue": "Session timeout is 30 min",
+    "fix": "Make it 15 minutes",
+    "severity": "high"
+  },
+  "R-014": {
+    "result": "✅",
+    "evidence": "p1:L22 QR-A.2 «at most 3 seconds»"
+  },
+  "R-015": {
+    "result": "❌",
+    "evidence": "p1:L34 UC-2.2 «Priority: Urgent» (allowed: High/Medium/Low)",
+    "target_loc": "p1:L34 UC-2.2",
+    "issue": "Invalid priority value",
+    "fix": "One of High/Medium/Low (team chooses: TBD)",
+    "severity": "medium"
+  },
+  "R-016": {
+    "result": "❌",
+    "evidence": "p2 has three images; Figure 1 (p2:L2) and Figure 2 (p2:L3) have captions, the «Report Screen» image has none (PDF page 2)",
+    "target_loc": "p2 third image",
+    "issue": "No Figure caption/number",
+    "fix": "Add a «Figure 3 Report screen» caption",
+    "severity": "medium"
+  },
+  "R-017": {
+    "result": "✅",
+    "evidence": "Table 1 (p1:L5), Table 2 (p1:L23) are numbered"
+  },
+  "R-018": {
+    "result": "✅",
+    "evidence": "QR-A.1, QR-A.2 (p1:L17-22)"
+  },
+  "R-019": {
+    "result": "❌",
+    "evidence": "p1:L21 QR-A.1 «Passwords shall be stored in plain text» — the opposite of the rule",
+    "target_loc": "p1:L21 QR-A.1",
+    "issue": "Plain-text storage is mandated",
+    "fix": "«…shall be stored hashed» (algorithm: TBD)",
+    "severity": "high"
+  },
+  "R-020": {
+    "result": "❌",
+    "evidence": "p1:L25 Table 2 «250 USD»; p2:L3 uses € (mixed)",
+    "target_loc": "p1:L25 Table 2",
+    "issue": "Amount is in USD",
+    "fix": "Show in € (amount: TBD, do not invent an exchange rate)",
+    "severity": "medium"
+  },
+  "R-021": {
+    "result": "✅",
+    "evidence": "Last section p2:L4 «6. Appendices» (the document ends with it)"
+  },
+  "R-022": {
+    "result": "❌",
+    "evidence": "FR-5 (p1:L18) has no UC reference; FR-4 points to UC-9.9, which does not exist (see internal consistency)",
+    "target_loc": "p1:L18 FR-5",
+    "issue": "No UC traceability",
+    "fix": "Link FR-5 to the relevant UC (add the UC if missing: TBD)",
+    "severity": "medium"
+  },
+  "R-023": {
+    "result": "✅",
+    "evidence": "Table 1 Revision history (p1:L5)"
+  },
+  "R-024": {
+    "result": "✅",
+    "evidence": "'customer' does not occur in the document; 'User' is in the glossary p1:L12"
+  },
+  "R-025": {
+    "result": "✅",
+    "evidence": "Page 1 (p1:L35), Page 2 (p2:L6) footer"
+  }
+}

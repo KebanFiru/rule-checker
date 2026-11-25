@@ -1,0 +1,4 @@
+{"rules":[
+ {"id":"R-001","source":{"doc":"process_rules (test)","page":1,"quote":"Process steps must carry an SP-N.M identifier."},"type":"format","scope":"whole document"},
+ {"id":"R-002","source":{"doc":"process_rules (test)","page":1,"quote":"Amounts must be shown in €."},"type":"numeric value","scope":"SP-1"},
+ {"id":"R-003","source":{"doc":"process_rules (test)","page":1,"quote":"The reminder period must be the same everywhere."},"type":"numeric value","scope":"SP-1.5, SP-2.3"}]}

@@ -1,0 +1,279 @@
+{
+ "rules": [
+  {
+   "id": "R-001",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "The document title must be \"Software Requirements Specification\"."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-002",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "The first page must show the version number in the form \"Version X.Y\"."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-003",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "The first page must show the author's name with the label \"Author:\"."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-004",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "The date on the first page must be written as DD.MM.YYYY."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-005",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "The document must contain an \"Introduction\" section."
+   },
+   "type": "template section",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-006",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "The document must contain a \"Scope\" section."
+   },
+   "type": "template section",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-007",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "The document must contain a \"Glossary\" section."
+   },
+   "type": "template section",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-008",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "Every requirement must carry an identifier of the form FR-N."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-009",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "Every use case must carry an identifier of the form UC-N.M."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-010",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "Requirements must not use optional wording such as \"can\" or \"may\"."
+   },
+   "type": "prohibition",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-011",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "Vague terms (\"appropriate\", \"if needed\", \"etc.\") must not be used."
+   },
+   "type": "prohibition",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-012",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "A password must be at least 8 characters long."
+   },
+   "type": "numeric value",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-013",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 1,
+    "quote": "The session timeout must be 15 minutes."
+   },
+   "type": "numeric value",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-014",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "The system response time must be at most 3 seconds."
+   },
+   "type": "numeric value",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-015",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "Every use case must have a Priority field with the value High, Medium or Low."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-016",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "Every screenshot must carry a numbered caption of the form \"Figure N\"."
+   },
+   "type": "format",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-017",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "Tables must be numbered with \"Table N\"."
+   },
+   "type": "format",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-018",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "Quality requirements must carry an identifier of the form QR-X.N."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-019",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "Passwords must not be stored in plain text."
+   },
+   "type": "prohibition",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-020",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "Monetary amounts must be shown in euros (€)."
+   },
+   "type": "numeric value",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-021",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "The document must end with an \"Appendices\" section."
+   },
+   "type": "template section",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-022",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "Every requirement must be traceable to at least one use case (UC)."
+   },
+   "type": "numeric value",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-023",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "The document must contain a revision history table."
+   },
+   "type": "template section",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-024",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "The term \"customer\" must not be used; the term \"user\" must be used."
+   },
+   "type": "prohibition",
+   "scope": "whole document",
+   "interpretation": ""
+  },
+  {
+   "id": "R-025",
+   "source": {
+    "doc": "rules.pdf",
+    "page": 2,
+    "quote": "Every page must show the page number at the bottom in the form \"Page N\"."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "interpretation": ""
+  }
+ ]
+}

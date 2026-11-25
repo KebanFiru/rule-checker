@@ -1,0 +1,17 @@
+# invariants.yaml schema. Invariants are never deleted/changed WITHOUT user approval;
+# if one has to change, report it as a "proposed change" (status: proposed).
+# ALL of them are verified on every update run: model_check.py invariants <model> <this file> --doc <new.txt>
+invariants:
+  - {id: I-01, text: "SP-10 starts when the transcript is uploaded, it does not wait for SP-11", check: order, nodes: [SP-10.1, SP-10.2],
+     source: {page: 14, ids: [SP-10]}}            # order: nodes progress in this order (reachability in the model graph + line order in the document)
+  - {id: I-02, text: "The reminder duration equals P-reminder everywhere", check: param_equal, param: P-reminder,
+     source: {page: 12}}                          # param_equal: for every node using the parameter, the value in its document block = the parameter value
+  - {id: I-03, text: "Extensions are unfunded", check: absent, pattern: "funded extension", scope: [SP-12.1],
+     source: {page: 20}}                          # absent: the regex must not occur in the document (whole document without scope; only those node blocks with scope)
+  - {id: I-04, text: "The exception step exists", check: exists, nodes: [SP-7.X1], source: {page: 13}}   # exists: defined in the model and in the document
+  - {id: I-05, text: "Exactly one coordinator approval in SP-7", check: cardinality, of: {process: SP-7, actor: coordinator}, op: "==", n: 1,
+     source: {page: 13}}                          # cardinality (model only): op ==, >=, <=
+  - {id: I-06, text: "SP-7.4 is reachable from SP-7.1", check: reachability, from: SP-7.1, to: SP-7.4, source: {page: 13}}
+  - {id: I-07, text: "All SP references are defined", check: cross_ref, pattern: "\\bSP-\\d+(?:\\.\\d+)*\\b", source: {page: 1}}
+    # cross_ref: no undefined next/goto in the model + every reference in the document matching the pattern has a definition
+# Optional field: status: active | proposed   (proposed = a change proposal waiting for user approval)

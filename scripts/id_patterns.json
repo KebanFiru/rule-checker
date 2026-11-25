@@ -1,0 +1,14 @@
+{
+  "_comment": "ID patterns (regex). Edit/extend per document. Each pattern must capture exactly one full ID. English and Turkish labels (Table/Tablo, Figure/Şekil) are both supported.",
+  "patterns": [
+    {"name": "UC",    "regex": "\\bUC-\\d+(?:\\.\\d+)*\\b"},
+    {"name": "QR",    "regex": "\\bQR-[A-Z]\\.\\d+\\b"},
+    {"name": "FR",    "regex": "\\bFR-\\d+(?:\\.\\d+)*\\b"},
+    {"name": "NFR",   "regex": "\\bNFR-\\d+(?:\\.\\d+)*\\b"},
+    {"name": "SP",    "regex": "\\bSP-\\d+(?:\\.(?:X)?\\d+)*\\b"},
+    {"name": "S",     "regex": "\\bS-\\d+(?:\\.\\d+)*\\b"},
+    {"name": "Table", "regex": "\\b(?:Tablo|Table)\\s+[A-Z]?\\d+(?:\\.\\d+)*\\b"},
+    {"name": "Figure", "regex": "\\b(?:Şekil|Figure|Fig\\.)\\s+[A-Z]?\\d+(?:\\.\\d+)*\\b"}
+  ],
+  "units": ["gün", "days?", "day", "hafta", "weeks?", "ay", "months?", "ECTS", "€", "EUR", "USD", "TL", "%", "MB", "GB", "KB", "saat", "hours?", "sn", "ms", "saniye", "seconds?", "kişi", "persons?", "minutes?", "min", "characters?", "chars?", "items?", "dakika", "dk", "karakter", "adet"]
+}

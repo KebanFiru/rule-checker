@@ -1,0 +1,13 @@
+# Impact analysis
+- Directly affected nodes: ['SP-1.4', 'SP-1.5', 'SP-2.2']  (what happened: {'SP-1.5': ['changed'], 'SP-2.2': ['changed'], 'SP-1.4': ['moved']})
+- Neighbours (next/exception): ['SP-1.3', 'SP-2.1', 'SP-2.3']
+- Using the same parameter: ['SP-2.3']  (parameters: ['P-reminder'])
+- Linked rules: ['R-003']
+- Linked invariants:
+  - I-01: The receipt (SP-1.4) comes after the approval (SP-1.3)  ← node overlap SP-1.3,SP-1.4
+  - I-02: The reminder period equals P-reminder everywhere  ← parameter P-reminder
+  - I-03: Currency is € only (no USD/TL)  ← scope: whole document
+  - I-06: SP-1.4 is reachable from SP-1.1  ← node overlap SP-1.4
+  - I-07: All SP references are defined  ← scope: whole document
+- Changes with NO counterpart in the model (🆕 new process/step or ❓ model needs updating): [('SP-1.6', 'added')]
+- Only affected invariants are listed; on a version change ALL invariants must be re-verified (model_check.py invariants).

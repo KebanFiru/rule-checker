@@ -1,0 +1,245 @@
+{
+  "Table 1": {
+    "pattern": "Table",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L5",
+        "title": "Revision history"
+      }
+    ],
+    "refs": []
+  },
+  "UC-1.1": {
+    "pattern": "UC",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L27",
+        "title": "Sign in"
+      }
+    ],
+    "refs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L14",
+        "context": "FR-1 The system shall let the user sign in (UC-1.1)."
+      },
+      {
+        "doc": "target_srs",
+        "loc": "p1:L16",
+        "context": "FR-3 The system shall close the session after 30 minutes of inactivity (UC-1.1)."
+      },
+      {
+        "doc": "target_srs",
+        "loc": "p2:L2",
+        "context": "Figure 1 UC-1.1 Sign-in screen"
+      }
+    ]
+  },
+  "FR-1": {
+    "pattern": "FR",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L14",
+        "title": "The system shall let the user sign in (UC-1.1)."
+      }
+    ],
+    "refs": []
+  },
+  "UC-1.2": {
+    "pattern": "UC",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L29",
+        "title": "Change password"
+      }
+    ],
+    "refs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L15",
+        "context": "FR-2 The system shall accept passwords of at least 6 characters (UC-1.2)."
+      }
+    ]
+  },
+  "FR-2": {
+    "pattern": "FR",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L15",
+        "title": "The system shall accept passwords of at least 6 characters (UC-1.2)."
+      }
+    ],
+    "refs": []
+  },
+  "FR-3": {
+    "pattern": "FR",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L16",
+        "title": "The system shall close the session after 30 minutes of inactivity (UC-1.1)."
+      }
+    ],
+    "refs": []
+  },
+  "UC-9.9": {
+    "pattern": "UC",
+    "defs": [],
+    "refs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L17",
+        "context": "FR-4 The system shall accept payments; for details see UC-9.9."
+      }
+    ]
+  },
+  "FR-4": {
+    "pattern": "FR",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L17",
+        "title": "The system shall accept payments; for details see UC-9.9."
+      }
+    ],
+    "refs": []
+  },
+  "FR-5": {
+    "pattern": "FR",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L18",
+        "title": "The system can provide reports."
+      }
+    ],
+    "refs": []
+  },
+  "FR-6": {
+    "pattern": "FR",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L19",
+        "title": "The system shall send notifications in an appropriate format, if needed by e-mail"
+      }
+    ],
+    "refs": []
+  },
+  "UC-2.1": {
+    "pattern": "UC",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L31",
+        "title": "Send notification"
+      }
+    ],
+    "refs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L20",
+        "context": "etc. (UC-2.1); see FR-14."
+      }
+    ]
+  },
+  "FR-14": {
+    "pattern": "FR",
+    "defs": [],
+    "refs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L20",
+        "context": "etc. (UC-2.1); see FR-14."
+      }
+    ]
+  },
+  "QR-A.1": {
+    "pattern": "QR",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L21",
+        "title": "Passwords shall be stored in plain text."
+      }
+    ],
+    "refs": []
+  },
+  "QR-A.2": {
+    "pattern": "QR",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L22",
+        "title": "The system response time shall be at most 3 seconds."
+      }
+    ],
+    "refs": []
+  },
+  "Table 2": {
+    "pattern": "Table",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L23",
+        "title": "Fees (for details see Table 5)"
+      }
+    ],
+    "refs": []
+  },
+  "Table 5": {
+    "pattern": "Table",
+    "defs": [],
+    "refs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L23",
+        "context": "Table 2 Fees (for details see Table 5)"
+      }
+    ]
+  },
+  "UC-2.2": {
+    "pattern": "UC",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p1:L33",
+        "title": "Make payment"
+      }
+    ],
+    "refs": [
+      {
+        "doc": "target_srs",
+        "loc": "p2:L3",
+        "context": "Figure 2 UC-2.2 Payment screen (amount 100 €)"
+      }
+    ]
+  },
+  "Figure 1": {
+    "pattern": "Figure",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p2:L2",
+        "title": "UC-1.1 Sign-in screen"
+      }
+    ],
+    "refs": []
+  },
+  "Figure 2": {
+    "pattern": "Figure",
+    "defs": [
+      {
+        "doc": "target_srs",
+        "loc": "p2:L3",
+        "title": "UC-2.2 Payment screen (amount 100 €)"
+      }
+    ],
+    "refs": []
+  }
+}

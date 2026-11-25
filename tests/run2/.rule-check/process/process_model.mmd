@@ -1,0 +1,26 @@
+flowchart TD
+%% AUTO-GENERATED from process_model.yaml. Do not edit by hand.
+  subgraph SP_1["SP-1 Payment Process"]
+    SP_1_1["SP-1.1 · user<br/>creates the payment request"]
+    SP_1_2["SP-1.2 · system<br/>validates the amount in €, checks the fields, forwards the request to the coordinator"]
+    SP_1_3["SP-1.3 · coordinator<br/>approves the payment"]
+    SP_1_4["SP-1.4 · system<br/>generates the receipt"]
+    SP_1_5["SP-1.5 · system<br/>sends a reminder after 3 days"]
+    SP_1_6["SP-1.6 · system<br/>archives the receipt"]
+    SP_1_X1["SP-1.X1 · system<br/>shows an error and returns to SP-1.1"]
+  end
+  subgraph SP_2["SP-2 Notification Process"]
+    SP_2_1["SP-2.1 · system<br/>adds the notification to the queue"]
+    SP_2_2["SP-2.2 · system<br/>sends the notification by e-mail"]
+    SP_2_3["SP-2.3 · system<br/>applies the reminder period of 3 days"]
+  end
+  SP_1_1 --> SP_1_2
+  SP_1_2 --> SP_1_3
+  SP_1_2 -.->|"amount mismatch"| SP_1_X1
+  SP_1_3 --> SP_1_4
+  SP_1_4 --> SP_1_5
+  SP_1_4 --> SP_2_1
+  SP_1_5 --> SP_1_6
+  SP_1_X1 --> SP_1_1
+  SP_2_1 --> SP_2_2
+  SP_2_2 --> SP_2_3

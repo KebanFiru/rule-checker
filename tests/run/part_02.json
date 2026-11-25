@@ -1,0 +1,26 @@
+{
+ "R-021": {
+  "result": "✅",
+  "evidence": "Last section p2:L4 «6. Appendices» (the document ends with it)"
+ },
+ "R-022": {
+  "result": "❌",
+  "evidence": "FR-5 (p1:L18) has no UC reference; FR-4 points to UC-9.9, which does not exist (see internal consistency)",
+  "target_loc": "p1:L18 FR-5",
+  "issue": "No UC traceability",
+  "fix": "Link FR-5 to the relevant UC (add the UC if missing: TBD)",
+  "severity": "medium"
+ },
+ "R-023": {
+  "result": "✅",
+  "evidence": "Table 1 Revision history (p1:L5)"
+ },
+ "R-024": {
+  "result": "✅",
+  "evidence": "'customer' does not occur in the document; 'User' is in the glossary p1:L12"
+ },
+ "R-025": {
+  "result": "✅",
+  "evidence": "Page 1 (p1:L35), Page 2 (p2:L6) footer"
+ }
+}

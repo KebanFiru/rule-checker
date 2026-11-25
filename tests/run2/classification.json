@@ -1,0 +1,6 @@
+{"SP-2.2": {"class": "✅", "why": "e-mail delivery added; conflicts with no invariant/parameter (I-01..I-08 unaffected)"},
+ "SP-1.5": {"class": "⚠️", "why": "reminder 3→5 days; SP-2.3 still says 3 days (I-02 FAIL). Unpropagated change; which value is valid is a team decision (TBD): NOT written to the model"},
+ "SP-2.3": {"class": "⚠️", "why": "uses the same P-reminder parameter; the change did not propagate here"},
+ "SP-1.4": {"class": "❌", "why": "the receipt step was moved before the approval step (SP-1.3); it was correct in v1 (I-01 FAIL). Regression: NOT written to the model"},
+ "SP-1.6": {"class": "🆕", "why": "new step 'archives the receipt' not in the model; added (its place in the flow is an ASSUMPTION: listing order)"},
+ "SP-1.2": {"class": "noise", "why": "line wrapping only"}}
