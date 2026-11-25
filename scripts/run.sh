@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs every skill script inside Docker (nothing is installed on the host).
-# Usage: run.sh python /skill/scripts/extract.py document.pdf -o out/
+# Usage: run.sh python3 /skill/scripts/extract.py document.pdf -o out/
 #        run.sh pdftotext -v
 # The current directory is mounted as /work; the skill directory as /skill (read-only).
 # RULE_CHECK_TARGET=test uses the image that also has the fixture-generation libraries (tests only).

@@ -9,6 +9,11 @@ RUN apt-get update \
     && (apt-get install -y --no-install-recommends libreoffice-writer-nogui \
         || apt-get install -y --no-install-recommends libreoffice-writer) \
     && rm -rf /var/lib/apt/lists/*
+# The chat sandbox embeds LiberationSerif (TrueType) and TeXGyreTermes (Type 1) in LibreOffice PDFs; install the same families
+# so the 'ffi' ligature behaviour can be reproduced. (Debian/Ubuntu package for 'tex-gyre' is fonts-texgyre.)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-liberation fonts-texgyre \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 ENV UV_PYTHON_INSTALL_DIR=/opt/python UV_LINK_MODE=copy UV_CACHE_DIR=/tmp/uv-cache
 RUN uv python install 3.13.18 \

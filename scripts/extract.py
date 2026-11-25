@@ -150,24 +150,56 @@ def norm_tokens(lines):
 
 
 SPLIT_RX = re.compile(r"\b([A-Z]) ([a-z]{2,})\b")
+WORDS = re.compile(r"[^\W\d_]+")
+LIGS = ("ffi", "ffl", "ff", "fi", "fl")          # ligature fragments, longest first
+GAP_RX = re.compile(r"([^\W\d_]+) ([^\W\d_]+)")
 
 
 def repair_splits(pages, other_pages):
-    """Re-join kerning artifacts like 'T able' -> 'Table' (seen with pypdf 5.4 in content-order mode on LibreOffice PDFs; fixed in
-    pypdf 6.x) using the OTHER engine as evidence: only when the other engine has the joined word and does not contain the split form,
-    so text on which both engines agree is never touched. Returns a list of {page, from, to}."""
+    """Repairs PRIMARY text damage that one engine causes and the OTHER engine does not, using the other engine as evidence.
+    A repair is applied ONLY when the other engine contains the correct word and does not contain the damaged form, so text on
+    which both engines agree is never touched. Returns a list of {page, kind, from, to}. Kinds:
+      split-capital    'T able'            -> 'Table'     (kerning gap after a capital; pypdf 5.4 in content-order mode)
+      ligature-gap     'e cient'           -> 'efficient' (ligature glyph missing where the word breaks; Type 1 fonts via LibreOffice)
+      ligature-stray   'ağırffi'           -> 'ağır'      (the same glyph emitted at the wrong place, glued to a neighbouring word)"""
     repairs = []
     for pi, lines in enumerate(pages):
         other = " ".join(other_pages[pi]) if pi < len(other_pages) else ""
-        vocab = set(re.findall(r"[^\W\d_]+", other.lower()))
-        for li, line in enumerate(lines):
-            def fix(m):
-                joined = m.group(1) + m.group(2)
-                if joined.lower() in vocab and m.group(0) not in other:
-                    repairs.append({"page": pi + 1, "from": m.group(0), "to": joined})
-                    return joined
+        other_l = other.lower()
+        vocab = set(WORDS.findall(other_l))
+
+        def note(kind, a, b):
+            repairs.append({"page": pi + 1, "kind": kind, "from": a, "to": b})
+            return b
+
+        def fix_capital(m):
+            joined = m.group(1) + m.group(2)
+            return note("split-capital", m.group(0), joined) if joined.lower() in vocab and m.group(0) not in other else m.group(0)
+
+        def fix_gap(m):
+            x, y = m.group(1), m.group(2)
+            if f"{x} {y}".lower() in other_l:
                 return m.group(0)
-            lines[li] = SPLIT_RX.sub(fix, line)
+            for lig in LIGS:
+                if (x + lig + y).lower() in vocab:
+                    return note("ligature-gap", m.group(0), x + lig + y)
+            return m.group(0)
+
+        def fix_stray(m):
+            w, wl = m.group(0), m.group(0).lower()
+            if wl in vocab:
+                return w
+            for lig in LIGS:
+                if wl.endswith(lig) and len(wl) > len(lig) and wl[:-len(lig)] in vocab:
+                    return note("ligature-stray", w, w[:-len(lig)])
+                if wl.startswith(lig) and len(wl) > len(lig) and wl[len(lig):] in vocab:
+                    return note("ligature-stray", w, w[len(lig):])
+            return w
+
+        for li, line in enumerate(lines):
+            line = SPLIT_RX.sub(fix_capital, line)
+            line = GAP_RX.sub(fix_gap, line)
+            lines[li] = WORDS.sub(fix_stray, line)
     return repairs
 
 
@@ -300,7 +332,8 @@ def main():
                 rep_p, rep_s = repair_splits(pages, second), repair_splits(second, pages)
                 if rep_p or rep_s:
                     meta["repairs"] = {"primary": rep_p, "second_opinion": rep_s}
-                    print(f"  NOTE: re-joined {len(rep_p)} split word(s) in the {a.engine} text and {len(rep_s)} in the {second_name} text using the other engine as evidence (e.g. {(rep_p + rep_s)[0]['from']!r} -> {(rep_p + rep_s)[0]['to']!r}); see meta 'repairs'")
+                    ex = (rep_p + rep_s)[0]
+                    print(f"  NOTE: repaired {len(rep_p)} damaged word(s) in the {a.engine} text and {len(rep_s)} in the {second_name} text using the other engine as evidence (e.g. {ex['from']!r} -> {ex['to']!r}, {ex['kind']}); see meta 'repairs'")
             meta["pages"] = len(pages)
             empty = [i + 1 for i, p in enumerate(pages) if not p]
             if empty:

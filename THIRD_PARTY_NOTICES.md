@@ -2,7 +2,7 @@
 
 This repository's own code is MIT-licensed (see `LICENSE`). It vendors no third-party code and uses **no PyPI packages**:
 the scripts need only the Python standard library plus PyYAML (process-model files), pypdf (pure-Python PDF engine) and the
-poppler `pdftotext` command, all installed from Debian packages when the Docker image is built (`docker/Dockerfile`). Licenses are as published
+poppler `pdftotext` command, all installed from Debian packages when the source repository's Docker image is built (`docker/Dockerfile` in the repository; not part of the packaged skill). Licenses are as published
 by Debian/upstream at the time of writing; verify before redistributing an image.
 
 | Component | Used for | License | Where |

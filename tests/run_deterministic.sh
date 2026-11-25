@@ -48,6 +48,10 @@ if [ -s s1docx/stress/pdf/stress.pdf ]; then
     sc extract.py s1docx/stress/pdf/stress.pdf --engine $eng "${ro[@]}" --tables -o s1docx/stress/ex_${eng}_$mode | grep -E "warnings"
   done; done
 fi
+if [ -s s1docx/stress/pdf/stress.pdf ]; then
+  pdffonts s1docx/stress/pdf/stress.pdf | tail -n +3 | awk '{print "  font: " $1 " " $2 " " $3}'
+  python3 "$REPO/tests/check_stress_ligatures.py" s1docx/stress/ex_pdftotext_layout s1docx/stress/ex_pypdf_layout s1docx/stress/ex_pdftotext_reading s1docx/stress/ex_pypdf_reading
+fi
 VIS=(); [ -f s1docx/pdf/visual_status.json ] && VIS=(--visual s1docx/pdf/visual_status.json)
 sc matrix.py coverage s1/rules.json s1/results.json -o s1/coverage_env.md --env s1/env.json "${VIS[@]}"
 { printf '# Rule Check Report\n\n'; cat s1/coverage_env.md; echo; cat s1/internal.md; } > s1/report_env.md

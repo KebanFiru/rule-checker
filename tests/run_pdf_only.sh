@@ -14,3 +14,4 @@ for pdf in "$IN"/*.pdf; do stem="$(basename "$pdf" .pdf)"
   done; done
 done
 echo "read $(ls "$IN"/*.pdf | wc -l) PDF(s) x 4 engine/mode combinations"
+[ -f "$IN/stress.pdf" ] && python3 "$REPO/tests/check_stress_ligatures.py" ex/pdftotext_layout ex/pypdf_layout ex/pdftotext_reading ex/pypdf_reading | sed 's/^/  /'

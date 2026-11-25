@@ -53,5 +53,6 @@ engine-disagreement warnings. Extra checks in `run_deterministic.sh`: a DOCX var
 written by `make_docx_variant.py` with three embedded screenshots) is converted by LibreOffice and verified (`check_converted_pdf.py`:
 pages, 3 unique images, caption text); tables are checked cell by cell (`check_tables.py`: pdfplumber path in v2, layout fallback in
 `chat-env`); `fixtures/stress.fodt` (two columns, justified text, ligatures, bordered table; `make_stress_fodt.py`) is converted to a PDF
-and extracted with both engines in both modes. `fixtures/target_srs.docx` and `stress.fodt` are generated separately from
+and extracted with both engines in both modes. `chat-env-v2` also installs `fonts-liberation` and `fonts-texgyre`, so LibreOffice embeds LiberationSerif (TrueType) + TeXGyreTermes (Type 1) like the Claude chat sandbox. With them the stress PDF reproduces a pypdf ligature problem (`eﬃcient` → `e cient`, and a stray `ffi` glued to `ağır`); `extract.py` repairs such damage using the other engine as evidence (only when the other engine has the correct word and not the damaged form), records every repair in the metadata (`repairs`), and `check_stress_ligatures.py` (plus the unit controls in `check_engine_warning.py`) verifies that the primary text of every engine/mode is clean.
+`fixtures/target_srs.docx` and `stress.fodt` are generated separately from
 `make_fixtures.py` on purpose, so the committed PDFs (which embed timestamps) are never regenerated.

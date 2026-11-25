@@ -59,9 +59,9 @@ $R python /skill/scripts/matrix.py verify work/rules.json work/report.md
 `make test` runs the scorers; `make chat-env-test` builds two replicas of a chat sandbox (`docker/chat-env.Dockerfile`, `docker/chat-env-v2.Dockerfile`: pypdf 6.17, pdfplumber, poppler 24.02, LibreOffice) and compares both scenarios across images and engines.
 ```bash
 cd tests
-RULE_CHECK_TARGET=test ../scripts/run.sh python /skill/tests/make_fixtures.py fixtures   # only to regenerate fixtures
-../scripts/run.sh python /skill/tests/score.py run          # rule-check scenario
-../scripts/run.sh python /skill/tests/score_v2.py run2      # process model / regression scenario
+RULE_CHECK_TARGET=test ../scripts/run.sh python3 /skill/tests/make_fixtures.py fixtures   # only to regenerate fixtures
+../scripts/run.sh python3 /skill/tests/score.py run          # rule-check scenario
+../scripts/run.sh python3 /skill/tests/score_v2.py run2      # process model / regression scenario
 ```
 
 ## Dependencies and licenses
