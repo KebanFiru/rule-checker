@@ -9,8 +9,9 @@ Alt komutlar:
                                                                "Coverage summary" (report top), visual / reference / parameter sections,
                                                                the coverage table (EVERY rule and fact one row) and the violation list;
                                                                --env adds the Environment section, --visual the visual-pass status line
-  verify rules.json report.md [--work DIR]                     is the report complete? coverage table == register, and every gate of the
-                                                               steps that were run (files in DIR, default: folder of rules.json; see gates.py)
+  verify rules.json report.md [--work DIR] [--env env.json]    is the report complete? coverage table == register, current summary first,
+                                                               and every gate of the steps that were run (files in DIR, default: folder
+                                                               of rules.json; see gates.py)
 Facts (F-001 …, "kind": "fact") live in the same register and get the same result symbols as rules.
 
 Result values: ✅ ❌ ⚠️ ➖ ❓ ; evidence is required for ✅/❌/⚠️, the reason for ➖, and what is missing for ❓.
@@ -174,12 +175,11 @@ def cmd_verify(a):
 
 
 def verify_gates(a, rules, text, rows):
-    """Checks of the steps that were run: gate errors, generated lines present in the report, summary first, assumption marks."""
+    """The generated summary is always required (first, current: steps not run show as NOT RUN and are counted); gate errors apply to
+    the steps that were run; rows resting on the target carry the assumption mark."""
     import gates
     work = Path(a.work or Path(a.rules).parent)
-    if not any((work / n).exists() for n in ("visual_inventory.json", "ref_sections.json", "params.json", "doc_identity.json")):
-        return []
-    g = gates.collect(work, rules)
+    g = gates.collect(work, rules, a.env)
     err = list(g["errors"])
     first = re.search(r"^##[ \t]+(.*)$", text, re.M)
     if not first or not re.match(r"(?i)(coverage summary|kapsam özeti)", first.group(1)):
@@ -199,7 +199,7 @@ def main():
     p = sp.add_parser("set-bulk"); p.add_argument("results"); p.add_argument("part"); p.set_defaults(f=cmd_set_bulk)
     p = sp.add_parser("status"); p.add_argument("rules"); p.add_argument("results"); p.set_defaults(f=cmd_status)
     p = sp.add_parser("coverage"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out", default="coverage.md"); p.add_argument("--env"); p.add_argument("--visual"); p.add_argument("--work"); p.set_defaults(f=cmd_coverage)
-    p = sp.add_parser("verify"); p.add_argument("rules"); p.add_argument("report"); p.add_argument("--work"); p.set_defaults(f=cmd_verify)
+    p = sp.add_parser("verify"); p.add_argument("rules"); p.add_argument("report"); p.add_argument("--work"); p.add_argument("--env"); p.set_defaults(f=cmd_verify)
     a = ap.parse_args(); a.f(a)
 
 

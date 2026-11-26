@@ -102,4 +102,16 @@ proc = REPO / "tests/fixtures/process"
 params, _ = param_check.model_parameters(proc / "model_v1/process_model.yaml", param_check.load_concepts(None))
 occ = [{"role": "target", "doc": "v2", "loc": "x", "value": v, "unit": "day", "dimension": "time", "concept": "reminder"} for v in ("5", "3")]
 line("parameter: compared with the process model", [c["kinds"] for c in param_check.conflicts(occ, params)], [["target-internal", "target-vs-model"]])
+with tempfile.TemporaryDirectory() as t:                      # no new step run at all: allowed, but visible and counted
+    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+    for n in ("visual_inventory.json", "ref_sections.json", "params.json", "doc_identity.json"):
+        (w / n).unlink()
+    run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
+    body = (w / "coverage.md").read_text(encoding="utf-8"); top = body.split("## Summary")[0]
+    (w / "report.md").write_text("# R\n\n" + body, encoding="utf-8")
+    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("no gate run: NOT RUN lines shown and counted", (top.count(": NOT RUN"), "- Skipped checks: 4" in top, r.returncode), (4, True, 0))
+    (w / "report.md").write_text("# R\n\n## Summary" + body.split("## Summary", 1)[1], encoding="utf-8")
+    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("no gate run, summary removed: rejected", (r.returncode != 0, "must START" in r.stdout), (True, True))
 print("\nSUMMARY:", "FULL" if all(tot) else "GAPS")
