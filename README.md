@@ -25,9 +25,9 @@ The repository root is the skill root (`SKILL.md` is at the top level).
 
 ```bash
 # user-wide
-git clone <repo-url> ~/.claude/skills/rule-check
+git clone https://github.com/KebanFiru/rule-checker.git ~/.claude/skills/rule-check
 # or per project
-git clone <repo-url> <project>/.claude/skills/rule-check
+git clone https://github.com/KebanFiru/rule-checker.git <project>/.claude/skills/rule-check
 ```
 
 Or download `rule-check.zip` from a [release](../../releases) and unzip it into a `skills` directory (the archive contains a top-level `rule-check/` folder; it ships only the skill, no tests or development tooling).

@@ -14,7 +14,7 @@ done
 FLAGS="--rm --network none --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /tmp --user $(id -u):$(id -g) -e HOME=/tmp -e PYTHONDONTWRITEBYTECODE=1"
 echo "== version table (target = measured in the Claude chat sandbox) =="
 printf '%-12s %-12s %-14s %-14s\n' component target chat-env chat-env-v2
-envj() { docker run --rm --network none -v "$REPO":/skill:ro,z "rule-check:$1" python3 /skill/scripts/env_check.py --json /tmp/e.json >/dev/null && docker run --rm --network none -v "$REPO":/skill:ro,z "rule-check:$1" sh -c "python3 /skill/scripts/env_check.py --json /tmp/e.json >/dev/null; python3 -c \"import json;e=json.load(open('/tmp/e.json'));L=e['libraries'];T=e['tools'];print('|'.join([e['python'],L['pypdf'] or '-',L['PyYAML'] or '-',L['pdfplumber'] or '-',(T['pdftotext']['version'] or '-').split()[-1],(T['soffice']['version'] or '-')]))\""; }
+envj() { docker run $FLAGS -v "$REPO":/skill:ro,z "rule-check:$1" python3 /skill/scripts/env_check.py --json /tmp/e.json >/dev/null && docker run $FLAGS -v "$REPO":/skill:ro,z "rule-check:$1" sh -c "python3 /skill/scripts/env_check.py --json /tmp/e.json >/dev/null; python3 -c \"import json;e=json.load(open('/tmp/e.json'));L=e['libraries'];T=e['tools'];print('|'.join([e['python'],L['pypdf'] or '-',L['PyYAML'] or '-',L['pdfplumber'] or '-',(T['pdftotext']['version'] or '-').split()[-1],(T['soffice']['version'] or '-')]))\""; }
 A=$(envj chat-env); B=$(envj chat-env-v2); IFS='|' read -r -a a <<<"$A"; IFS='|' read -r -a b <<<"$B"
 t=(3.13.18 6.17.0 6.0.3 0.11.10 24.02.0 present); n=(python pypdf PyYAML pdfplumber poppler LibreOffice)
 for k in 0 1 2 3 4 5; do printf '%-12s %-12s %-14s %-14s\n' "${n[$k]}" "${t[$k]}" "${a[$k]:0:14}" "${b[$k]:0:14}"; done
