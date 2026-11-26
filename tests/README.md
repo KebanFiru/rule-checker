@@ -17,6 +17,15 @@ The target has 12 deliberate rule violations, 3 broken cross-references and 2 sc
 8 comments from 2 people (some valid, some not) and 2 tracked changes. `run/` holds the output of one sample run
 (`rules.json`, `results.json`, `report.md`, `per_person.md`, …).
 
+## 1c. Nothing skipped silently (`run3/`, `fixtures/coverage/`)
+A 14-page target with 6 screens (the screens on pages 11 and 13 contradict the body), a vector-only data model, a reminder period
+stated three times with one deviation, an AS-IS reference paragraph with "must" and a fact conflict, and a prompt naming "Ek B"
+that exists only as the target's own Appendix B. `score_coverage.py` also runs negative checks: `verify` must reject unopened pages,
+unclassified sections, missing verdicts, a removed identity note and stale summaries; it also unit-checks number/unit and caption
+recognition (English and Turkish), the process-model comparison and the counting of an incomplete inventory. Regenerate fixtures with
+`RULE_CHECK_TARGET=test ../dev/run.sh python /skill/tests/make_fixtures_coverage.py fixtures/coverage`. The visual findings,
+classifications and results in `run3/` are model judgements by the session that wrote the key (contaminated); no blind run yet.
+
 ## 2. Process model / regression scenario (`run2/`, `fixtures/process/`)
 ```bash
 cd tests; R=../dev/run.sh
@@ -39,7 +48,7 @@ measurements; `classification.json` and `results.json` are the model's own judge
 session only `fixtures/*.pdf|docx` and run the skill.
 
 ## 3. Chat-environment replicas (no Docker wrapper inside)
-`bash tests/chat_env_test.sh` (or `make chat-env-test`) builds two images and runs both scenarios in each, once per primary PDF engine
+`bash tests/chat_env_test.sh` (or `make chat-env-test`) builds two images and runs all scenarios in each, once per primary PDF engine
 (`pdftotext`, `pypdf`), by calling `python3 scripts/x.py` directly (`tests/run_deterministic.sh`; no `dev/run.sh`, no `python` alias):
 
 | image | Python | pypdf | PyYAML | pdfplumber | poppler | LibreOffice |

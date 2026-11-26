@@ -27,3 +27,9 @@
 - Verify numeric values yourself (sums, percentages, date order).
 - Never invent a value for something the reference does not answer: TBD / team decision.
 - Keyword candidates (matrix.py skeleton) are only hints; if the candidate list is empty the rule may be violated.
+
+## 6. Silent gaps (the report looks complete but is not)
+- Looking at the first few screen pages and stopping: the visual inventory lists them all; every one needs a log row.
+- Turning only the "FR" lines into rules: AS-IS text and interview notes hold facts, TO-BE lists hold one rule per item, and "must" hides in descriptive paragraphs.
+- Assuming "Appendix B" / "Ek B" named by the user is the target's own appendix: check the files, ask, and say so.
+- Checking durations by eye: use `param_check.py`, then judge each conflict.

@@ -51,6 +51,7 @@ def collect():
     unavailable = []
     if not caps["pdf_text"]: unavailable.append("PDF text extraction (neither pdftotext nor pypdf found): PDF targets/references cannot be processed by scripts; read the PDFs with the Read tool")
     elif not caps["pdf_second_opinion"]: unavailable.append("independent PDF second opinion (needs both pdftotext and pypdf): extraction disagreements will not be detected automatically")
+    if not have("pypdf"): unavailable.append("image and drawing detection for the visual inventory (pypdf missing): every page must be read for the visual pass")
     if not caps["process_model"]: unavailable.append("process model / invariants / impact analysis (PyYAML missing)")
     if not caps["pdf_tables_pdfplumber"]: unavailable.append("cell-level PDF table extraction (pdfplumber missing): tables come from the -layout text with ' | ' separated cells")
     if not caps["docx_visual_pass_libreoffice"]: unavailable.append("DOCX visual pass (LibreOffice missing): DOCX targets cannot be rendered; ask for a PDF export or skip the visual pass")

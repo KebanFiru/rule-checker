@@ -5,100 +5,83 @@ description: Check one or more target documents (PDF/DOCX) against the rules in 
 
 # rule-check
 
-Goal: check TARGET documents against the rules in REFERENCE documents in ONE pass, exhaustively. This fixes the "finds a few obvious problems, finds new ones every round" failure mode with a **rule register + traceability matrix + coverage verification**: the work is not finished until every rule has an explicit result. "Finished" means `matrix.py verify` passes.
+Check TARGET documents against REFERENCE documents in ONE exhaustive pass. **Nothing is skipped silently:** whatever is skipped appears in the report with a count and a reason. The work is finished only when `matrix.py verify` passes.
 
-## Running
-The scripts are plain Python 3 (standard library only) and run directly: `python3 <skill-dir>/scripts/<script>.py …`, where `<skill-dir>` is the directory that contains this SKILL.md. Set once, then use it in every command below:
+Details are in `reference/workflow-details.md`, one `##` section per step: when you reach a step, read ITS section once (do not load the whole file up front or re-read it). Read `reference/pitfalls.md` once before step 1.
+
 ```bash
-S=<skill-dir>/scripts
+S=<skill-dir>/scripts    # the directory that contains this SKILL.md; plain python3, never pip install
 ```
-Optional pieces degrade gracefully (step E reports what is missing): PyYAML (process model), pypdf and/or poppler's `pdftotext` (PDF text), pdfplumber (cell-level tables), LibreOffice (DOCX visual pass). Never `pip install` anything on the host or in the sandbox, and use `python3`, never `python`. (Developers of this repository run everything in Docker through `dev/run.sh`; that is not needed to use the skill.)
-
-## Workflow (in order, WITHOUT skipping)
-
-**E. Environment check** (always first, one command):
+When resuming (new session or summarized context) run FIRST:
 ```bash
-python3 $S/env_check.py --json work/env.json     
+python3 $S/progress.py show work/progress.json
+python3 $S/matrix.py status work/rules.json work/results.json
 ```
-It reports the Python, pypdf, pdfplumber, PyYAML, `pdftotext` and LibreOffice (`soffice`) versions and lists the checks that CANNOT be done here (no second PDF engine, no cell-level tables, no DOCX visual pass, no process model). Tell the user up front which checks will be skipped, and pass `--env work/env.json` to `matrix.py coverage` (step 7) so the report's "Environment" section states it.
 
-**0. Classify the documents**: target / reference / review. If unsure, ask the user; if the user is unavailable, write your guess at the top of the report. Identify which documents are IMMUTABLE (e.g. a Project Report) and use them as reference only. Create a working folder `work/`; intermediate files live there.
+## Steps (in order, WITHOUT skipping)
+A step you cannot do: `python3 $S/progress.py step work/progress.json <step> skipped --reason "…"`.
 
-**1. RULE REGISTER**: Run `extract.py` on the references and READ them page by page (all of it). Split every checkable statement into an atomic rule (if one sentence has two conditions joined by "and", make two rules) and number them `R-001…`. Per rule: source document + page + short quote (original language), type (required content / prohibition / format / numeric value / process order / terminology / template section), scope (which parts of the target it applies to), optional `keywords`. Put interpretation in a separate field (`interpretation`), never mixed into the rule itself. If the same rule is worded differently in two places, register both. Output: `work/rules.json` + `work/rule_register.md` (see `templates/rule_register.md`). Never invent a rule or value that has no source; what the reference does not answer becomes "TBD / team decision". Mark your own assumptions with "ASSUMPTION:".
-
-**2. Deterministic pass** (take the results as they are):
+**E. Environment** — tell the user which checks cannot run here.
 ```bash
-python3 $S/extract.py target.pdf [ref.pdf …] [--docx-source target.docx] -o work/ex
+python3 $S/env_check.py --json work/env.json
+```
+
+**0. Classify + identity** — target / reference (note immutable ones) / review; ask if unsure. Match EVERY document name the user used; if one is not a file, ASK (else the note goes to the top of the report).
+```bash
+python3 $S/extract.py target.pdf ref.pdf [review.docx] [--docx-source target.docx] [--tables] [--reading-order] -o work/ex
+python3 $S/section_inventory.py identity --target work/ex/target.txt --files ref.pdf --names "Ek B" "PAR" [--lang tr] -o work/doc_identity.json
+```
+
+**1. Reference coverage, then rule register** — classify EVERY section (rule-bearing | fact | open-question | descriptive-only) before writing rules; rules `R-001…`, facts `F-001…`, each with `source.section`, into `work/rules.json`.
+```bash
+python3 $S/section_inventory.py scan work/ex/ref.txt ["work/ex/target.txt@Appendix B"] -o work/ref_sections.json
+python3 $S/section_inventory.py classify work/ref_sections.json work/classes.json
+```
+
+**2. Deterministic pass** — read the warnings; judge EVERY parameter conflict.
+```bash
 python3 $S/id_index.py work/ex/target.txt -o work/id_index.json
-python3 $S/xref_check.py work/ex/target.txt --numbers -o work/xref_report.md
+python3 $S/xref_check.py work/ex/target.txt --numbers --also-numbers work/ex/ref.txt -o work/xref_report.md
+python3 $S/param_check.py scan --target work/ex/target.txt --ref work/ex/ref.txt [--model <model>] [--concepts work/param_concepts.local.json] -o work/params.json
+python3 $S/param_check.py verdict work/param_verdicts.json work/param_part.json
 ```
-Cell-level tables: add `--tables` to `extract.py` (pdfplumber cells as `p<page>:T<table>R<row>C<col>` in `<stem>.tables.txt`/`.json`; without pdfplumber it falls back to the `-layout` rows and says so). Multi-column PDFs: add `--reading-order` (default `-layout` interleaves columns).
-To catch numeric rules, add the reference values to the inventory with `xref_check.py … --also-numbers work/ex/ref.txt` (compare differing values for the same unit by hand).
-Read the `extract.py` warnings (PDF text comes from two independent engines, pdftotext and pypdf; `--engine` picks the primary one): if the two engines disagree, merged words are reported, or a page has no text layer, these may be extraction artifacts → do not report them as document errors. Verify against the DOCX source or by reading that PDF page natively with the Read tool (`pages` parameter); Claude's own reading of the page is the final arbiter for doubtful text. ID patterns live in `scripts/id_patterns.json`; adapt them to the document's ID style (`--patterns`). xref findings are heuristic: verify each one in the document.
 
-**3. TRACEABILITY**:
+**3. Traceability** — one result per rule/fact, one by one, in blocks of 20: ✅ ❌ ⚠️ ➖ ❓ with evidence. Search a whole block in ONE call; never one grep per term.
 ```bash
-python3 $S/matrix.py skeleton work/rules.json work/ex/target.txt -o work/matrix
-```
-Then process the rules ONE BY ONE (never in groups); for each, read the whole rule and the relevant part of the target side by side and give ONE result:
-✅ Compliant (evidence: page/ID in target) | ❌ Violation | ⚠️ Partial | ➖ Not applicable (reason) | ❓ Cannot verify (what is missing)
-
-Work in **blocks of 20** rules. After each block write the part as JSON and record it (checkpoint; work can resume even if the context fills up):
-```json
-{"R-001":{"result":"✅","evidence":"p4 UC-2.1 heading present"},
- "R-002":{"result":"❌","evidence":"…","target_loc":"p7 UC-3.8","issue":"…","fix":"…","severity":"high"}}
-```
-```bash
+python3 $S/search.py work/ex/target.txt --rules work/rules.json --all-blocks
+python3 $S/search.py work/ex/target.txt -t "term" -t "other term"
 python3 $S/matrix.py set-bulk work/results.json work/part_01.json
-python3 $S/matrix.py status work/rules.json work/results.json   # where you are
+python3 $S/matrix.py status work/rules.json work/results.json
 ```
-When resuming (new session/context) run `status` first and continue with the remaining rules. Empty `evidence` is rejected. For "absence" violations write where you looked. The candidate list (skeleton) is only a hint; even with no candidate, search the target for the rule.
 
-**4. Internal consistency pass** (outside the rules but mandatory): broken references, undefined/duplicate IDs and numbering gaps from xref_check; the same value appearing differently in different places (durations, amounts, codes, ECTS, dates); the same concept under different names; text inside screens/figures vs body text. Write findings to `work/internal.md`.
+**4. Internal consistency** — references, IDs, values, names, screens vs body → `work/internal.md`.
 
-**5. Visual pass** (no script: Claude reads the pages itself): open the PDF pages that contain screenshots, tables or figures with the **Read tool and its `pages` parameter** (e.g. `pages: "2"` or `"3-5"`; max 20 pages per call) and LOOK at them: text, dates, codes and amounts inside images are not in the text layer. Which pages? Every page with an embedded image or figure (spot them in the text output: "Figure N" / "Screen" captions, or pages whose text is very short), every page with a table, and every page `extract.py` warned about (no text layer). Compare what you see with the body and the rules. Read table rows that split across a page break as one table. If the target is a DOCX, convert it first: `python3 $S/docx_to_pdf.py target.docx -o work/docx_pdf` (headless LibreOffice, 60 s limit; works without network and with a read-only filesystem), then read the pages of `work/docx_pdf/<name>.pdf` with the Read tool. The script prints either `Visual pass: DOCX→PDF (LibreOffice …)` or `⏭️ visual pass skipped (<reason>)` (no LibreOffice, timeout …) and never fails the run: if it is skipped, ask the user for a PDF export, or continue without the visual pass. Pass `--visual work/docx_pdf/visual_status.json` to `matrix.py coverage` so the report states which of the two happened.
+**5. Visual pass** — read `reference/visual-pass.md`. EVERY inventory page gets a log row; Read tool in batches of up to 20 pages.
+```bash
+python3 $S/visual_inventory.py scan target.pdf -o work/visual_inventory.json
+python3 $S/visual_inventory.py record work/visual_log.json work/visual_part_01.json
+```
+DOCX target: `python3 $S/docx_to_pdf.py target.docx -o work/docx_pdf` first.
 
-**6. Review documents** (if given; `extract.py` puts comments + tracked changes in the DOCX json): make EACH comment its own item (person + comment no.). Give one value per item: Valid (per which rule/evidence) | Partially valid | Invalid (why) | Team decision needed (options) | Already fixed | Requires touching an immutable document. If different people give conflicting suggestions on the same topic, merge them and propose a middle path but DO NOT decide; ask.
+**6. Review documents** (if given) — one verdict per comment, `templates/per_person.md`.
 
-**7. Report**:
+**7. Report** — title lines, then the generated output unchanged ("Coverage summary" first), then your findings (`templates/report.md`).
 ```bash
 python3 $S/matrix.py coverage work/rules.json work/results.json -o work/coverage.md --env work/env.json [--visual work/docx_pdf/visual_status.json]
+python3 $S/matrix.py verify work/rules.json work/report.md      # must exit 0
 ```
-Build `work/report.md` using `templates/report.md`: summary counts; violations table (#, rule ID, source document+page, target location page+ID, issue, suggested fix, severity); **COVERAGE TABLE (EVERY rule one row)**; cross-reference/internal-consistency findings; visual findings; extraction warnings; TBDs. If reviews were given, also output `templates/per_person.md` format: person heading + numbered items, nothing else.
-**Completion condition:**
+
+**8. Fixes only if the user asks** — then run steps 2–5 again and list regressions separately.
+
+## Process model + regression check
+On every run, FIRST read `.rule-check/<document>/process_model.yaml` and `invariants.yaml` if they exist. Before building (A), updating (B) or fixing a document (C), read `reference/process-model.md`.
 ```bash
-python3 $S/matrix.py verify work/rules.json work/report.md   # must exit 0
+python3 $S/model_check.py check <model> --rules <rules.json>
+python3 $S/model_check.py invariants <model> <invariants.yaml> --doc work/ex/new.txt -o work/inv.json
+python3 $S/doc_diff.py old.pdf new.pdf -o work/diff.json
+python3 $S/impact.py --model <model> --diff work/diff.json --rules <rules.json> --invariants <invariants.yaml> -o work/impact
+python3 $S/model_check.py bump <model> --nodes SP-1.5 --reason "…"
 ```
-If it fails, the job is not finished; fill the gaps.
-
-**8. Fixes only if the user asks.** If asked: (with a process model, run step C first) fix → regenerate the document → run steps 2–5 AGAIN → list regressions (previously ✅, now ❌) separately.
-
-## Process model + regression check (persistent memory)
-The processes in a document (steps, actors, order, conditions, durations, exceptions) are turned into a compact model stored as a FILE. When the document is updated, the changes are checked against this model so that an update cannot break something that was previously correct. **On every run, FIRST read the model and the invariants** (so detail is not lost from the context of a long document). Guide: `reference/modeling-guide.md`; schemas: `templates/process_model.schema.yaml`, `templates/invariants.schema.yaml`.
-
-The model lives next to the document (in the working folder):
-```
-.rule-check/<document-name>/ process_model.yaml (single source of truth) · process_model.mmd (auto-generated, do not edit) · invariants.yaml · rules.json · changelog.md
-```
-Rules: `source` is REQUIRED on every node/parameter, unsourced information never enters the model; interpretation/assumption is marked `assumption: true`; keep the model short but never drop a value/condition/exception. Invariants or rules are never deleted/changed without user approval: report them as a "proposed change".
-
-### A. FIRST RUN (no `.rule-check/<document>/process_model.yaml` yet)
-1. After the rule register (step 1), extract the process model → `python3 $S/model_check.py check .rule-check/<document>/process_model.yaml --rules .rule-check/<document>/rules.json` (the same call generates the `.mmd`) → fix the errors; repeat until there are 0 errors.
-2. Coverage check: is every process section/UC/screen of the document linked to at least one node? List the ones that are not.
-3. Derive the invariants (`invariants.yaml`) and verify them: `python3 $S/model_check.py invariants <model> <invariants> --doc work/ex/document.txt`. Show the user a summary: how many processes, nodes, parameters, invariants.
-4. If the document already contradicts the model (e.g. two different durations in two places), make that a finding of the first report (model_check reports "same parameter, different value").
-5. Write the v1 entry in `changelog.md`.
-
-### B. UPDATE RUN (model exists; read the model + invariants first)
-1. `python3 $S/doc_diff.py old.pdf new.pdf -o work/diff.json` (PDF/DOCX; line breaks/hyphens/footers are listed separately as noise).
-2. `python3 $S/impact.py --model <model> --diff work/diff.json --rules <rules.json> --invariants <invariants.yaml> -o work/impact` → affected nodes, neighbours, nodes using the same parameter, rules, invariants; changes with no counterpart in the model (🆕/❓). **Run it BEFORE updating the model.**
-3. Check every affected item in the new document one by one; also re-verify ALL invariants (not only the affected ones): `model_check.py invariants … --doc work/ex/new.txt -o work/inv.json`.
-4. Classify: ✅ expected change | ❌ regression (was correct, now broken) | ⚠️ unpropagated change (changed in one place, still old in linked places) | 🆕 new process/step (not in the model) | ❓ model needs updating.
-5. Report: regressions and unpropagated changes FIRST, then the rest.
-6. Model update: apply only ✅/🆕 changes to the model (❌/⚠️ are not written to the model until the user decides; record them in `tbd`); run `model_check.py check` again; then `python3 $S/model_check.py bump <model> --nodes SP-1.5,SP-2.2 --doc-version "Rev 2" --reason "<finding/review no.>"` (increments the version and writes version/date/nodes/reason to `changelog.md`). Rule and invariant changes need user approval.
-
-### C. When I (Claude) make a fix in the document
-BEFORE the fix, list the impact with `impact.py --keys SP-1.5,SP-2.3 …` (which nodes/parameters/rules/invariants are affected); AFTER the fix, run the B steps (doc_diff → impact → all invariants → classification → report) for my own change and list regressions separately.
 
 ## Rules
 - Never invent a rule/value with no source; what the reference does not answer = "TBD / team decision".
@@ -106,4 +89,4 @@ BEFORE the fix, list the impact with `impact.py --keys SP-1.5,SP-2.3 …` (which
 - Do not propose a change that would make something look done that nobody did (e.g. "show it as if it had been done in Figma").
 - Write the report in the user's language; quotes from documents stay in their original language.
 - Flag separately any proposal that requires touching an immutable document.
-- Read `reference/pitfalls.md` before starting.
+- Never delete or change invariants or rules without user approval: report a "proposed change".

@@ -1,0 +1,10 @@
+{
+ "P:reminder:time": {
+  "verdict": "real",
+  "note": "p3 FR-1 and p6 UC-1.1 say 5 days, p9 QR-A.1 says 7 days (the coordinator repeat; the reference only knows 5 days: team decides whether it is a separate period)"
+ },
+ "P:fee:money": {
+  "verdict": "legitimate-difference",
+  "note": "p14: 40 € confirmation fee and 10 € late fee are two different fees"
+ }
+}

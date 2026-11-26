@@ -1,0 +1,38 @@
+{
+ "R-001": {
+  "result": "⚠️",
+  "evidence": "p3 FR-1 and p6 UC-1.1: 5 days; p9 QR-A.1: 7 days",
+  "target_loc": "p9 QR-A.1",
+  "issue": "A second reminder period of 7 days",
+  "fix": "TBD / team decision",
+  "severity": "medium"
+ },
+ "R-002": {
+  "result": "✅",
+  "evidence": "p3 FR-2; p13 S-1.6 shows the fee before the Pay button"
+ },
+ "R-003": {
+  "result": "❌",
+  "evidence": "p13 S-1.6 screen shows 55 €; body p13 and Appendix B p14 show 40 €",
+  "target_loc": "p13 S-1.6",
+  "issue": "Screen amount differs",
+  "fix": "TBD / team decision (do not alter the image on paper only)",
+  "severity": "high"
+ },
+ "R-004": {
+  "result": "➖",
+  "evidence": "the late fee appears only in Appendix B p14; searched 'late fee' in pages 1-13"
+ },
+ "F-001": {
+  "result": "❌",
+  "evidence": "p3 FR-3: collected by the International Office; reference AS-IS: Finance Office",
+  "target_loc": "p3 FR-3",
+  "issue": "Collecting office differs from the current situation",
+  "fix": "TBD: confirm whether the responsibility moves",
+  "severity": "medium"
+ },
+ "F-002": {
+  "result": "❓",
+  "evidence": "the target says nothing about keeping a receipt (searched 'receipt', all 14 pages)"
+ }
+}

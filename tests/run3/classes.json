@@ -1,0 +1,30 @@
+{
+ "ref_policy#(preamble)": {
+  "class": "descriptive-only",
+  "reason": "title and one sentence on the role of the policy"
+ },
+ "ref_policy#1": {
+  "class": "descriptive-only",
+  "reason": "motivation only"
+ },
+ "ref_policy#2": {
+  "class": "rule-bearing",
+  "reason": ""
+ },
+ "ref_policy#3": {
+  "class": "fact",
+  "reason": ""
+ },
+ "ref_policy#4": {
+  "class": "open-question",
+  "reason": "responsibility outside office hours is undecided"
+ },
+ "ref_policy#Appendix A": {
+  "class": "descriptive-only",
+  "reason": "contact hint without an obligation or value"
+ },
+ "target_ui#Appendix B": {
+  "class": "rule-bearing",
+  "reason": ""
+ }
+}

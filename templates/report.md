@@ -4,14 +4,30 @@
 **Classification assumptions:** (write here if the user could not be asked)
 **Immutable documents:** …
 
+(Paste the output of `matrix.py coverage` here UNCHANGED. It starts with "Coverage summary", which must be the first `##` section, and contains the sections below up to "Violations". `verify` rejects missing or stale lines.)
+
+## Coverage summary
+(rules, facts, reference sections classified A/B, visual pages C/D, parameter conflicts E, document identity notes, skipped checks with reason and count)
+
 ## Summary
-Total rules: N — ✅ a, ❌ b, ⚠️ c, ➖ d, ❓ e
+Total rules: N, facts: M — ✅ a, ❌ b, ⚠️ c, ➖ d, ❓ e
 
 ## Visual pass
 (`Visual pass: DOCX→PDF (LibreOffice …)`, `Visual pass: PDF pages read with the Read tool`, or `⏭️ visual pass skipped (<reason>)`; `matrix.py coverage --visual` writes this line for DOCX targets)
 
 ## Environment
 (`env_check.py` output via `matrix.py coverage --env`: library/tool versions and the checks that could not be done)
+
+## Reference coverage
+| Section | Title | Pages | Class | Rules | Facts | Reason |
+|---|---|---|---|---|---|---|
+
+## Visual coverage
+Visual coverage: X/Y pages (skipped and open pages listed)
+
+## Parameter conflicts (internal-consistency candidates)
+| Conflict | Kind | Target | Reference | Model | Verdict | Note |
+|---|---|---|---|---|---|---|
 
 ## Violations
 | # | Rule | Source (document+page) | Target location (page+ID) | Issue | Suggested fix | Severity |

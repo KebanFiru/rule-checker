@@ -1,0 +1,38 @@
+{
+  "pages": 14,
+  "screen_pages": [
+    4,
+    5,
+    7,
+    11,
+    12,
+    13
+  ],
+  "data_model_page": 10,
+  "screen_mismatches": {
+    "11": [
+      "22.03.2027",
+      "15.03.2027"
+    ],
+    "13": [
+      "55",
+      "40"
+    ]
+  },
+  "asis_section": "ref_policy#3",
+  "fact_conflict": [
+    "Finance Office",
+    "International Office"
+  ],
+  "param_conflict": {
+    "id": "P:reminder:time",
+    "target_values": [
+      "5 day",
+      "7 day"
+    ]
+  },
+  "identity": {
+    "name": "Ek B",
+    "status": "internal-section"
+  }
+}

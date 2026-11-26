@@ -3,7 +3,7 @@
 .PHONY: package test chat-env-test clean
 package:            ## build dist/rule-check.zip (explicit include list; no tests, no dev tooling)
 	./dev/run.sh python3 /skill/dev/package.py /work/dist/rule-check.zip
-test:               ## both scenarios end to end in the regular image (self-contained, works on a fresh clone)
+test:               ## all scenarios end to end in the regular image (self-contained, works on a fresh clone)
 	mkdir -p tests/_out_test
 	./dev/run.sh bash /skill/tests/run_deterministic.sh /work/tests/_out_test > tests/_out_test.log 2>&1 || { cat tests/_out_test.log; exit 1; }
 	bash tests/assert_clean.sh tests/_out_test.log

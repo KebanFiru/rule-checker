@@ -1,0 +1,93 @@
+{
+ "rules": [
+  {
+   "id": "R-001",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#2",
+    "quote": "The system shall send a reminder after 5 days without an answer."
+   },
+   "type": "numeric value",
+   "scope": "whole document",
+   "keywords": [
+    "reminder",
+    "days"
+   ]
+  },
+  {
+   "id": "R-002",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#2",
+    "quote": "The system shall show the confirmation fee before payment."
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "keywords": [
+    "confirmation fee",
+    "payment"
+   ]
+  },
+  {
+   "id": "R-003",
+   "source": {
+    "doc": "target_ui.pdf",
+    "page": 14,
+    "section": "target_ui#Appendix B",
+    "quote": "Confirmation fee 40 €"
+   },
+   "type": "numeric value",
+   "scope": "screens and body",
+   "keywords": [
+    "confirmation fee"
+   ]
+  },
+  {
+   "id": "R-004",
+   "source": {
+    "doc": "target_ui.pdf",
+    "page": 14,
+    "section": "target_ui#Appendix B",
+    "quote": "Late fee 10 €"
+   },
+   "type": "numeric value",
+   "scope": "screens and body",
+   "keywords": [
+    "late fee"
+   ]
+  },
+  {
+   "id": "F-001",
+   "kind": "fact",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#3",
+    "quote": "The confirmation fee is collected by the Finance Office"
+   },
+   "type": "terminology",
+   "scope": "whole document",
+   "keywords": [
+    "collected",
+    "office"
+   ]
+  },
+  {
+   "id": "F-002",
+   "kind": "fact",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#3",
+    "quote": "the student must keep the receipt"
+   },
+   "type": "process order",
+   "scope": "payment",
+   "keywords": [
+    "receipt"
+   ]
+  }
+ ]
+}

@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Fast check on every push and pull request: both scenarios end to end in the regular image
+  # Fast check on every push and pull request: all scenarios end to end in the regular image
   # (rule check + process model/regression, extraction, xref, matrix verify, diff, impact, invariants, scorers).
   test:
     runs-on: ubuntu-24.04

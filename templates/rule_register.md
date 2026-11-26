@@ -11,10 +11,12 @@ Type: required content / prohibition / format / numeric value / process order / 
 
 ## rules.json schema
 ```json
-{"rules":[{"id":"R-001","source":{"doc":"rules.pdf","page":2,"quote":"..."},
+{"rules":[{"id":"R-001","source":{"doc":"rules.pdf","page":2,"section":"rules#3.1","quote":"..."},
   "type":"required content","scope":"whole document","interpretation":"","keywords":["..."]}]}
 ```
-`keywords` is optional but recommended (`matrix.py skeleton` finds candidates with it).
+`keywords` is optional but recommended (`search.py` and `matrix.py skeleton` find candidates with it).
+`source.section` is the id from `work/ref_sections.json` (required once that file exists). Facts from AS-IS text or interview notes
+use `"id": "F-001"` and `"kind": "fact"` in the same file; they get the same result symbols as rules.
 
 ## Conflicting references
 If the same rule is worded differently in two places, register BOTH as separate rules and list them here:

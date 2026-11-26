@@ -5,16 +5,21 @@ Alt komutlar:
   skeleton rules.json target.txt [...] [-o matrix] [--top 4]   candidate locations in the target per rule (CSV+MD)
   set-bulk results.json part.json                              merges {"R-001": {"result":"✅","evidence":"p3 UC-2.1", ...}} (checkpoint)
   status rules.json results.json                               how many rules are done, which remain (resume where you left off)
-  coverage rules.json results.json [-o coverage.md] [--env env.json] [--visual visual_status.json]
-                                                               produces the coverage table (EVERY rule one row) and the violation list;
+  coverage rules.json results.json [-o coverage.md] [--env env.json] [--visual visual_status.json] [--work DIR]
+                                                               "Coverage summary" (report top), visual / reference / parameter sections,
+                                                               the coverage table (EVERY rule and fact one row) and the violation list;
                                                                --env adds the Environment section, --visual the visual-pass status line
-  verify rules.json report.md                                  is the report's coverage table == the rule register? (exit code 1 if not)
+  verify rules.json report.md [--work DIR]                     is the report complete? coverage table == register, and every gate of the
+                                                               steps that were run (files in DIR, default: folder of rules.json; see gates.py)
+Facts (F-001 …, "kind": "fact") live in the same register and get the same result symbols as rules.
 
 Result values: ✅ ❌ ⚠️ ➖ ❓ ; evidence is required for ✅/❌/⚠️, the reason for ➖, and what is missing for ❓.
 results.json fields: result, evidence, [target_loc, issue, fix, severity]
 """
 import argparse, csv, json, re, sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+import progress
 
 VALID = ["✅", "❌", "⚠️", "➖", "❓"]
 # stop words for keyword extraction (English + Turkish)
@@ -85,6 +90,9 @@ def cmd_set_bulk(a):
             bad.append(f"{rid}: evidence is empty (evidence/reason required)"); continue
         res[rid] = v
     Path(a.results).write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
+    ok = [r for r in part if r in res and res[r] is part[r]]
+    if ok:
+        progress.checkpoint(Path(a.results).parent, "rule_blocks", [f"{Path(a.part).name}: {ok[0]}..{ok[-1]} ({len(ok)})"])
     print(f"{len(res)} rules recorded")
     if bad:
         print("REJECTED:\n  " + "\n  ".join(bad)); sys.exit(1)
@@ -104,7 +112,9 @@ def cell(s): return str(s or "").replace("|", "¦").replace("\n", " ")
 
 
 def cmd_coverage(a):
+    import gates
     rules = load_rules(a.rules)
+    g = gates.collect(a.work or Path(a.rules).parent, rules, a.env)
     res = json.loads(Path(a.results).read_text(encoding="utf-8"))
     cnt = {k: 0 for k in VALID}; L = ["| Rule | Source | Result | Evidence / Reason |", "|---|---|---|---|"]
     viol = []
@@ -114,10 +124,13 @@ def cmd_coverage(a):
             L.append(f"| {r['id']} | | ❓ | **NO RESULT** |"); cnt["❓"] += 1; continue
         sym = next(x for x in VALID if norm_res(x) == norm_res(v["result"])); cnt[sym] += 1
         src = r.get("source", {}); srcs = f"{src.get('doc', '')} s.{src.get('page', '')}"
+        if r["id"] in g["assumed"]: srcs += f" {gates.ASSUMPTION}"
         L.append(f"| {r['id']} | {cell(srcs)} | {sym} | {cell(v['evidence'])} |")
         if sym in ("❌", "⚠️"):
             viol.append((r, v, sym, srcs))
-    head = [f"Total rules: {len(rules)} — " + ", ".join(f"{k} {n}" for k, n in cnt.items()), ""]
+    nf = sum(1 for r in rules if gates.is_fact(r))
+    total = f"Total rules: {len(rules) - nf}" + (f", facts: {nf}" if nf else "")
+    head = [f"{total} — " + ", ".join(f"{k} {n}" for k, n in cnt.items()), ""]
     V = ["", "| # | Rule | Source | Target location | Issue | Suggested fix | Severity |", "|---|---|---|---|---|---|---|"]
     for n, (r, v, sym, srcs) in enumerate(viol, 1):
         V.append(f"| {n} | {r['id']} {sym} | {cell(srcs)} | {cell(v.get('target_loc'))} | {cell(v.get('issue') or v['evidence'])} | {cell(v.get('fix'))} | {cell(v.get('severity'))} |")
@@ -126,7 +139,7 @@ def cmd_coverage(a):
         extra += ["## Visual pass", json.loads(Path(a.visual).read_text(encoding="utf-8"))["line"], ""]
     if a.env:
         extra += json.loads(Path(a.env).read_text(encoding="utf-8"))["md"].rstrip("\n").splitlines() + [""]
-    out = "\n".join(["## Summary", *head, *extra, "## Coverage table", *L, "", "## Violations", *V]) + "\n"
+    out = "\n".join(["## Coverage summary", *g["summary"], "", "## Summary", *head, *extra, *g["sections"], "## Coverage table", *L, "", "## Violations", *V]) + "\n"
     Path(a.out).write_text(out, encoding="utf-8")
     print(f"{a.out}: {len(L) - 2} coverage rows, {len(viol)} violations/partial")
 
@@ -134,13 +147,14 @@ def cmd_coverage(a):
 def cmd_verify(a):
     rules = load_rules(a.rules); ids = [r["id"] for r in rules]
     text = Path(a.report).read_text(encoding="utf-8")
-    rows = re.findall(r"^\|\s*(R-\d+)\s*\|([^\n]*)$", text, re.M)
-    # count only the coverage section: the first table after the "Coverage" heading
-    m = re.search(r"^#+\s*[^\n]*(?:[Cc]overage|[Kk]apsama)[^\n]*\n(.*?)(?=\n#+\s|\Z)", text, re.S | re.M)   # English or Turkish heading
+    # count only the coverage TABLE section (English or Turkish heading), not the summary / reference / visual coverage sections
+    body = r"[^\n]*\n(.*?)(?=\n#+\s|\Z)"
+    m = re.search(r"^#+[ \t]*(?:\d+\.[ \t]*)?(?:coverage table|kapsama tablosu)" + body, text, re.S | re.M | re.I) or re.search(
+        r"^#+(?![^\n]*(?:summary|reference|visual|özet|referans|görsel))[^\n]*(?:coverage|kapsama)" + body, text, re.S | re.M | re.I)
     if not m:
         print("VERIFICATION FAILED — no 'Coverage' (or Turkish 'Kapsama') section heading found in the report"); sys.exit(1)
     sect = m.group(1)
-    rows = re.findall(r"^\|\s*(R-\d+)\s*\|([^\n]*)$", sect, re.M)
+    rows = re.findall(r"^\|\s*([RF]-\d+)\s*\|([^\n]*)$", sect, re.M)
     got = [r[0] for r in rows]; err = []
     if len(got) != len(ids): err.append(f"Row count {len(got)} ≠ rule count {len(ids)}")
     miss = [i for i in ids if i not in got]; dup = sorted({i for i in got if got.count(i) > 1}); unk = [i for i in got if i not in ids]
@@ -153,9 +167,30 @@ def cmd_verify(a):
         if not sym: err.append(f"{rid}: no valid result symbol")
         elif "NO RESULT" in rest: err.append(f"{rid}: result not entered")
         elif not cells[-2 if cells[-1] == "" else -1]: err.append(f"{rid}: evidence/reason empty")
+    err += verify_gates(a, rules, text, rows)
     if err:
         print("VERIFICATION FAILED — not finished:\n  " + "\n  ".join(err)); sys.exit(1)
     print(f"VERIFICATION OK: {len(got)}/{len(ids)} rules, one row each, result+evidence filled")
+
+
+def verify_gates(a, rules, text, rows):
+    """Checks of the steps that were run: gate errors, generated lines present in the report, summary first, assumption marks."""
+    import gates
+    work = Path(a.work or Path(a.rules).parent)
+    if not any((work / n).exists() for n in ("visual_inventory.json", "ref_sections.json", "params.json", "doc_identity.json")):
+        return []
+    g = gates.collect(work, rules)
+    err = list(g["errors"])
+    first = re.search(r"^##[ \t]+(.*)$", text, re.M)
+    if not first or not re.match(r"(?i)(coverage summary|kapsam özeti)", first.group(1)):
+        err.append("the report must START with the generated «## Coverage summary» section (matrix.py coverage)")
+    missing = [l for l in g["required"] if l.strip() not in text]
+    if missing:
+        err.append(f"{len(missing)} generated line(s) missing or stale in the report (paste the current matrix.py coverage output), e.g. {missing[:3]}")
+    for rid, rest in rows:
+        if rid in g["assumed"] and gates.ASSUMPTION not in rest:
+            err.append(f"{rid}: rests on the target itself, the row must carry «{gates.ASSUMPTION}»")
+    return err
 
 
 def main():
@@ -163,8 +198,8 @@ def main():
     p = sp.add_parser("skeleton"); p.add_argument("rules"); p.add_argument("targets", nargs="+"); p.add_argument("-o", "--out", default="matrix"); p.add_argument("--top", type=int, default=4); p.set_defaults(f=cmd_skeleton)
     p = sp.add_parser("set-bulk"); p.add_argument("results"); p.add_argument("part"); p.set_defaults(f=cmd_set_bulk)
     p = sp.add_parser("status"); p.add_argument("rules"); p.add_argument("results"); p.set_defaults(f=cmd_status)
-    p = sp.add_parser("coverage"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out", default="coverage.md"); p.add_argument("--env"); p.add_argument("--visual"); p.set_defaults(f=cmd_coverage)
-    p = sp.add_parser("verify"); p.add_argument("rules"); p.add_argument("report"); p.set_defaults(f=cmd_verify)
+    p = sp.add_parser("coverage"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out", default="coverage.md"); p.add_argument("--env"); p.add_argument("--visual"); p.add_argument("--work"); p.set_defaults(f=cmd_coverage)
+    p = sp.add_parser("verify"); p.add_argument("rules"); p.add_argument("report"); p.add_argument("--work"); p.set_defaults(f=cmd_verify)
     a = ap.parse_args(); a.f(a)
 
 
