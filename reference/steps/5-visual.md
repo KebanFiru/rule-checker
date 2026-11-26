@@ -1,4 +1,4 @@
-# Visual pass
+# 5. Visual pass
 
 Claude reads the pages itself; the scripts decide WHICH pages and prove that each one was handled.
 

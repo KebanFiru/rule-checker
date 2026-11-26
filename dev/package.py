@@ -28,6 +28,11 @@ def main():
     import re
     desc = re.search(r"^description: (.*)$", (ROOT / "SKILL.md").read_text(encoding="utf-8"), re.M).group(1)
     assert len(desc) <= 1024, f"SKILL.md description is {len(desc)} chars (limit 1024)"
+    big = [f"{n} ({f.stat().st_size} B)" for f, n in zip(files, names) if n.startswith("reference/steps/") and f.stat().st_size > 4096]
+    assert not big, f"step files over 4 KB, split them: {big}"
+    docs = [f for f, n in zip(files, names) if n == "SKILL.md" or n.startswith("reference/")]
+    broken = sorted({r for f in docs for r in re.findall(r"reference/[\w./-]+\.md", f.read_text(encoding="utf-8")) if r not in names})
+    assert not broken, f"skill documents point to files that are not packaged: {broken}"
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in files:
             info = zipfile.ZipInfo(f"rule-check/{f.relative_to(ROOT).as_posix()}", date_time=(2026, 1, 1, 0, 0, 0))

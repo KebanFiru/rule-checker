@@ -85,7 +85,7 @@ All are standard-library Python; run them as `python3 scripts/<name>.py …` (se
 | `doc_diff.py`, `impact.py` | section/ID-level diff between two versions (format noise separated); impact of changes on model nodes, parameters, rules and invariants |
 | `id_patterns.json` | configurable ID regexes and units (English and Turkish labels) |
 
-`templates/` holds the report, rule-register, per-person and model schemas; `reference/` holds `workflow-details.md`, `visual-pass.md`, `process-model.md`, `modeling-guide.md` and `pitfalls.md` (extraction and review traps).
+`templates/` holds the report, rule-register, per-person and model schemas; `reference/steps/` holds one detail file per workflow step (each at most 4 KB, read only when the step starts); `reference/` also holds `modeling-guide.md` and `pitfalls.md` (extraction and review traps).
 
 ## Process model and regression check
 
