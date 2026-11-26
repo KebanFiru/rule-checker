@@ -2,7 +2,7 @@
 # poppler 24.02.0, LibreOffice present). NO Docker wrapper inside: scripts are called as `python3 scripts/x.py`.
 # Ubuntu 24.04 gives poppler-utils 24.02; Python 3.13.18 (pinned) comes from uv's managed builds; the packages live in a venv.
 # The uv image tag is pinned too (0.13.10) for reproducible rebuilds.
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates poppler-utils fonts-dejavu-core \
