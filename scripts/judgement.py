@@ -414,42 +414,28 @@ def skip_conflicts(work, rules, res, mine, mine_res, own):
 
 # ---------- root findings ----------
 def root_findings(rows, findings, own):
-    """rows: [(id, result)] of the violating rows. Rows bound to the same internal finding, or with the same target location and the
-    same issue text, are one root finding. Returns [{"findings": [...], "rows": [ids], "label": str}] in order of the first row."""
-    parent = {i: i for i, _ in rows}
-
-    def top(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]; x = parent[x]
-        return x
-
+    """rows: [(id, result)] of the violating rows. A root finding is ONE internal finding (IF-n); rows bound to no finding are grouped
+    by identical target location and issue text. Groups never chain: a row bound to two findings is listed under each.
+    Returns [{"findings": [IF-n] or [], "rows": [ids], "label": str}] in order of the first row."""
     known = {str(f.get("id")) for f in findings}
     rx = re.compile(rf"(?<![\w-]){re.escape(own.p['finding'])}-\d+(?!\d)")
-    bound, first = {}, {}
 
     def norm(s):
         return " ".join(re.findall(r"\w+", fold(own.any.sub(" ", str(s or "")))))
 
+    groups = {}
     for rid, v in rows:
         mine = {f["id"] for f in findings if rid in (f.get("rules") or []) + (f.get("self_rules") or [])} | (set(rx.findall(text_of(v))) & known)
-        bound[rid] = mine
-        keys = sorted(mine)
         loc, issue = norm(v.get("target_loc")), norm(v.get("issue"))
-        if loc and issue:
-            keys.append((loc, issue))
+        keys = sorted(mine, key=lambda x: int(x.rsplit("-", 1)[1])) or [(loc, issue) if loc and issue else (rid,)]
         for k in keys:
-            if k in first:
-                parent[top(rid)] = top(first[k])
-            else:
-                first[k] = rid
-    groups = {}
-    for rid, _ in rows:
-        groups.setdefault(top(rid), []).append(rid)
+            groups.setdefault(k, []).append(rid)
     out = []
-    for members in groups.values():
-        ifs = sorted(set().union(*(bound[m] for m in members)), key=lambda x: int(x.rsplit("-", 1)[1]))
-        head = " + ".join(ifs) or ("same location and issue" if len(members) > 1 else "")
-        out.append({"findings": ifs, "rows": members, "label": f"{head} → {', '.join(members)}" if head else members[0]})
+    for key, members in groups.items():          # insertion order: first row, then finding number
+        finding = key if isinstance(key, str) else None
+        head = finding or ("same location and issue" if len(members) > 1 else "")
+        out.append({"findings": [finding] if finding else [], "rows": members,
+                    "label": f"{head} → {', '.join(members)}" if head else members[0]})
     return out
 
 

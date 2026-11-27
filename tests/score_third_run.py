@@ -90,6 +90,14 @@ line("root findings: rows of one internal finding on one line", roots[0]["label"
 line("root findings: same location and issue grouped, others alone", [r["label"] for r in roots[1:]],
      ["same location and issue → RC-R-007, RC-R-008", "RC-R-009"])
 
+two = {i: {"result": "❌", "evidence": "x", "target_loc": "p1", "issue": "the same issue"} for i in ("R-001", "R-002", "R-003", "R-004", "R-005")}
+two["R-004"]["evidence"] = "see IF-3"                      # bound by citation only; R-005 has the same location and issue, no finding
+pair = [{"id": "IF-1", "rules": ["R-001", "R-002"]}, {"id": "IF-2", "rules": ["R-002", "R-003"]}, {"id": "IF-3", "rules": []}]
+roots = judgement.root_findings(list(two.items()), pair, judgement.Own())
+line("root findings: a row bound to two findings is under each, no merge",
+     [r["label"] for r in roots], ["IF-1 → R-001, R-002", "IF-2 → R-002, R-003", "IF-3 → R-004", "R-005"])
+line("root findings: each group names exactly its own finding", [r["findings"] for r in roots], [["IF-1"], ["IF-2"], ["IF-3"], []])
+
 # ---------- earlier runs ----------
 p = d / "prev"; work = p / "work"
 subprocess.run(["rm", "-rf", str(p)], check=True)

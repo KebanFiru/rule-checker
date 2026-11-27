@@ -159,7 +159,7 @@ def cmd_coverage(a):
     nf = sum(1 for r in rules if own.is_fact(r))
     total = f"Total rules: {len(rules) - nf}" + (f", facts: {nf}" if nf else "")
     head = [f"{total} — " + ", ".join(f"{k} {n}" for k, n in cnt.items()), ""]
-    V = ["", "One line per root finding.", "", "| # | Root finding → rows | Result | Source | Target location | Issue | Suggested fix | Severity |", "|---|---|---|---|---|---|---|---|"]
+    V = ["", "One line per root finding; a row bound to several internal findings is listed under each.", "", "| # | Root finding → rows | Result | Source | Target location | Issue | Suggested fix | Severity |", "|---|---|---|---|---|---|---|---|"]
     for n, root in enumerate(g["roots"], 1):
         rows = [(i, *viol[i]) for i in root["rows"]]
         V.append(f"| {n} | {root['label']} | " + " | ".join([

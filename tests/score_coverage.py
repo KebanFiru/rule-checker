@@ -441,6 +441,25 @@ with tempfile.TemporaryDirectory() as t:
     report_replace(w, f"| {n} | {single} |", f"| {n} | removed |")
     r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
     line("violations: a root finding dropped from the report is rejected", (r.returncode != 0, "missing or stale" in r.stdout), (True, True))
+with tempfile.TemporaryDirectory() as t:
+    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+    first, second, third = [i for i in bad if i.startswith("R-")][:3]
+    rewrite(w, "internal.json", lambda x: x + [{"id": "IF-90", "text": "first shared cause", "rules": [first, second]},
+                                                {"id": "IF-91", "text": "second shared cause", "rules": [second, third]}])
+    def cite(x):          # each bound row names its findings
+        for rid, ids in ((first, "IF-90"), (second, "IF-90 and IF-91"), (third, "IF-91")):
+            x[rid]["evidence"] += f" ({ids})"
+    rewrite(w, "results.json", cite); reaudit(w)
+    run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
+    body = (w / "coverage.md").read_text(encoding="utf-8"); part = body.split("## Violations")[1].split("\n## ")[0]
+    cells = [l.split("|")[2].strip() for l in part.splitlines() if re.match(r"\| \d+ \|", l)]
+    line("violations: two findings sharing a row stay two lines",
+         [c for c in cells if c.startswith(("IF-90 ", "IF-91 "))], [f"IF-90 → {first}, {second}", f"IF-91 → {second}, {third}"])
+    line("violations: the summary counts the repeated row once",
+         (sum(second in c.split("→")[-1] for c in cells) > 1, f"- Violations: {len(bad)} rows" in body, f"{len(cells)} root findings" in body), (True, True, True))
+    (w / "report.md").write_text("# R\n\n" + body, encoding="utf-8")
+    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("violations: a report with a repeated row verifies", (r.returncode, r.stdout if r.returncode else ""), (0, ""))
 line("earlier run: the sample report states that none was found", "- Previous run results: none found" in rep.split("## Summary")[0], True)
 with tempfile.TemporaryDirectory() as t:
     w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
