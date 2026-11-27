@@ -2,14 +2,14 @@
  "R-002": {
   "source": "re-read target_srs: p1:L2"
  },
+ "R-003": {
+  "source": "re-read target_srs: p1:L3 «Author: Ali Veli»"
+ },
  "R-004": {
   "source": "re-read target_srs: p1:L4"
  },
  "R-006": {
   "source": "re-read target_srs: all headings p1:L9, L11, L13, L26, p2:L1, L4; no 'scope' in the text"
- },
- "R-009": {
-  "source": "re-read target_srs: p1:L27-33"
  },
  "R-010": {
   "source": "re-read target_srs: p1:L18"
@@ -29,9 +29,6 @@
  "R-016": {
   "source": "re-read target_srs: PDF page 2 viewed: third image has no caption"
  },
- "R-017": {
-  "source": "re-read target_srs: p1:L5 and p1:L23"
- },
  "R-019": {
   "source": "re-read target_srs: p1:L21"
  },
@@ -40,5 +37,8 @@
  },
  "R-022": {
   "source": "re-read target_srs: p1:L17-18"
+ },
+ "R-024": {
+  "source": "re-read target_srs: no 'customer' in either page; glossary p1:L12 uses 'User'"
  }
 }

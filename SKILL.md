@@ -31,6 +31,7 @@ python3 $S/env_check.py --json work/env.json
 ▶ On starting this step read only: `reference/steps/0-identify.md`
 ```bash
 python3 $S/extract.py target.pdf ref.pdf [ref2.pdf …] [review.docx] [--docx-source target.docx] [--tables] [--reading-order] -o work/ex
+python3 $S/prefixes.py work/ex/*.txt -o work/prefixes.json    # own ID prefixes; R- F- TBD- IF- below stand for the chosen ones
 python3 $S/section_inventory.py identity --target work/ex/target.txt --files ref.pdf --names "Ek B" "PAR" [--lang tr] -o work/doc_identity.json
 ```
 
@@ -59,7 +60,7 @@ python3 $S/matrix.py set-bulk work/results.json work/part_01.json
 python3 $S/matrix.py status work/rules.json work/results.json
 ```
 
-**4. Internal consistency** — references, IDs, values, names, screens vs body → `work/internal.md`; every contradiction also into `work/internal.json`, bound to the rules it concerns (decisions: `work/tbd.json`).
+**4. Internal consistency** — references, IDs, values, names, screens vs body → `work/internal.md`; every contradiction also into `work/internal.json`, as `IF-n`, bound to the rules it concerns (decisions: `work/tbd.json`).
 ▶ On starting this step read only: `reference/steps/4-internal.md`
 
 **5. Visual pass** — EVERY inventory page gets a log row; Read tool in batches of up to 20 pages.
@@ -73,7 +74,7 @@ DOCX target: `python3 $S/docx_to_pdf.py target.docx -o work/docx_pdf` first.
 **6. Review documents** (if given) — one verdict per comment, `templates/per_person.md`.
 ▶ On starting this step read only: `reference/steps/6-reviews.md`
 
-**6b. Self-audit** (MANDATORY before the report) — re-read the source for every ❌/⚠️/⚖️ row and the selected 10% of ✅.
+**6b. Self-audit** (MANDATORY before the report) — after all rules have a result: re-read the source for every ❌/⚠️/⚖️ row and a seeded random 10% of ✅.
 ▶ On starting this step read only: `reference/steps/6b-self-audit.md`
 ```bash
 python3 $S/matrix.py audit-plan work/rules.json work/results.json

@@ -12,13 +12,9 @@ check cannot be left out by forgetting a flag.
 import json
 from collections import Counter
 from pathlib import Path
-import visual_inventory, section_inventory, param_check, progress, judgement
+import visual_inventory, section_inventory, param_check, progress, judgement, prefixes
 
 ASSUMPTION = "⚑ source assumption"
-
-
-def is_fact(r):
-    return r.get("kind") == "fact" or r["id"].startswith("F-")
 
 
 def cell(s):
@@ -33,7 +29,8 @@ def read(work, name):
 def collect(work, rules, results, env_path=None, patterns=None, report_text=None):
     """{summary: [lines], sections: [markdown lines], required: [lines that must be in the report], errors: [..], assumed: set(rule ids)}"""
     errors, required, sections, skipped, summary = [], [], [], [], []
-    facts = [r for r in rules if is_fact(r)]
+    own = judgement.Own(prefixes.load(work)[0])
+    facts = [r for r in rules if own.is_fact(r)]
     summary.append(f"- Rules: {len(rules) - len(facts)}; facts: {len(facts)}")
 
     ident = read(work, "doc_identity.json")
@@ -54,7 +51,7 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
 
     ref = read(work, "ref_sections.json")
     if ref:
-        rows, errs, warns = section_inventory.evaluate(ref, rules); errors += errs
+        rows, errs, warns = section_inventory.evaluate(ref, rules, own.p["fact"]); errors += errs
         done = sum(1 for r in rows if r.get("class") in section_inventory.CLASSES)
         summary.append(f"- Reference coverage: {done}/{len(rows)} sections classified; warnings: {len(warns)}")
         sections += ["## Reference coverage", "| Section | Title | Pages | Class | Rules | Facts | Reason |", "|---|---|---|---|---|---|---|"]

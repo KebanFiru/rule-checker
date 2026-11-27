@@ -1,7 +1,7 @@
 {
  "R-001": {
   "result": "❌",
-  "evidence": "p3 FR-1 and p6 UC-1.1: reminder after 5 days; p9 QR-A.1: 7 days (IC-1)",
+  "evidence": "p3 FR-1 and p6 UC-1.1: reminder after 5 days; p9 QR-A.1: 7 days (IF-1)",
   "target_loc": "p9 QR-A.1",
   "issue": "The same student reminder is given as 7 days",
   "fix": "Write 5 days in QR-A.1",
@@ -13,7 +13,7 @@
  },
  "R-003": {
   "result": "❌",
-  "evidence": "p13 S-1.6 screen shows a confirmation fee of 55 €; body p13 and Appendix B p14 show 40 € (IC-2)",
+  "evidence": "p13 S-1.6 screen shows a confirmation fee of 55 €; body p13 and Appendix B p14 show 40 € (IF-2)",
   "target_loc": "p13 S-1.6",
   "issue": "Screen amount differs",
   "fix": "Make S-1.6, the body and Appendix B show one confirmation fee (value: TBD-1)",

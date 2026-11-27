@@ -48,6 +48,10 @@ def main():
             sys.exit("a skipped step needs --reason")
         d["steps"][a.step] = {"state": a.state, "reason": a.reason.strip()}
         save(a.file, d)
+    if d.get("prefixes"):
+        print("ID prefixes: " + ", ".join(f"{k} {v}-" for k, v in d["prefixes"].items()))
+    if d.get("audit_seed"):
+        print(f"self-audit seed: {d['audit_seed']} ({d.get('audit_seed_source', '')})")
     for k, v in d["steps"].items():
         print(f"step {k}: {v['state']}" + (f" ({v['reason']})" if v["reason"] else ""))
     for b in d["rule_blocks"]:

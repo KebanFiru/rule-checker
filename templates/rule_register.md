@@ -1,5 +1,7 @@
 # Rule Register
 
+`R-`, `F-` below are the default prefixes; use the ones in `work/prefixes.json`.
+
 Every row is ONE atomic, checkable statement. Never add a rule that has no source.
 Put interpretation in the "Interpretation / assumption" column (never mixed into the rule itself); your own assumptions start with "ASSUMPTION:".
 

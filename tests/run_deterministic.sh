@@ -6,7 +6,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$(mkdir -p "$1" && cd "$1" && pwd)"
 S1="$REPO/tests/run"; S2="$REPO/tests/run2"; F="$REPO/tests/fixtures"; P="$F/process"
-cd "$OUT"; ln -sfn "$F" fixtures; mkdir -p s1 s2
+cd "$OUT"; ln -sfn "$F" fixtures; rm -rf s1 s1docx s2 s3; mkdir -p s1 s2      # no stale work files from an earlier run
 sc() { local s="$1"; shift; python3 "$REPO/scripts/$s" "$@"; }
 EA=(); [ -n "${ENGINE:-}" ] && EA=(--engine "$ENGINE")   # optional primary PDF engine
 
@@ -15,11 +15,12 @@ sc extract.py "$F/target_srs.pdf" "$F/rules.pdf" "$F/review.docx" --docx-source 
 python3 "$REPO/tests/build_rules.py" s1/ex/rules.txt s1/rules.json rules.pdf
 sc id_index.py s1/ex/target_srs.txt -o s1/id_index.json
 sc xref_check.py s1/ex/target_srs.txt --numbers --also-numbers s1/ex/rules.txt -o s1/xref_report.md >/dev/null
+sc prefixes.py s1/ex/target_srs.txt s1/ex/rules.txt -o s1/prefixes.json | head -1
 sc matrix.py skeleton s1/rules.json s1/ex/target_srs.txt -o s1/matrix
 cp "$S1/part_01.json" "$S1/part_02.json" "$S1/internal.md" "$S1/per_person.md" s1/
 sc matrix.py set-bulk s1/results.json s1/part_01.json >/dev/null
 sc matrix.py set-bulk s1/results.json s1/part_02.json
-sc matrix.py audit-plan s1/rules.json s1/results.json | head -1
+sc matrix.py audit-plan s1/rules.json s1/results.json --seed rule-check-test | head -1   # fixed seed: reproducible test runs
 sc matrix.py audit-record s1/rules.json s1/results.json s1/self_audit.json "$S1/audit_part.json"
 sc matrix.py status s1/rules.json s1/results.json
 sc matrix.py coverage s1/rules.json s1/results.json -o s1/coverage.md
@@ -63,6 +64,7 @@ grep -E "^(Visual pass|⏭️)" s1/report_env.md || true
 echo; echo "### scenario 1c: nothing skipped silently (visual / reference / identity / parameters)"
 S3="$REPO/tests/run3"; C="$F/coverage"; mkdir -p s3
 sc extract.py "$C/target_ui.pdf" "$C/ref_policy.pdf" "${EA[@]}" -o s3/ex
+sc prefixes.py s3/ex/target_ui.txt s3/ex/ref_policy.txt -o s3/prefixes.json | head -1
 sc section_inventory.py identity --target s3/ex/target_ui.txt --files "$C/ref_policy.pdf" --names "Ek B" -o s3/doc_identity.json | head -1
 sc section_inventory.py scan s3/ex/ref_policy.txt "s3/ex/target_ui.txt@Appendix B" -o s3/ref_sections.json | tail -1
 sc section_inventory.py classify s3/ref_sections.json "$S3/classes.json"
@@ -74,7 +76,7 @@ cp "$S3/rules.json" "$S3/internal.md" s3/
 sc search.py s3/ex/target_ui.txt --rules s3/rules.json --all-blocks
 sc matrix.py set-bulk s3/results.json "$S3/part_01.json"
 cp "$S3/tbd.json" "$S3/internal.json" s3/
-sc matrix.py audit-plan s3/rules.json s3/results.json | head -1
+sc matrix.py audit-plan s3/rules.json s3/results.json --seed rule-check-test | head -1
 sc matrix.py set-bulk s3/results.json "$S3/audit_change.json" | tail -1
 sc matrix.py audit-record s3/rules.json s3/results.json s3/self_audit.json "$S3/audit_part.json"
 sc matrix.py coverage s3/rules.json s3/results.json -o s3/coverage.md

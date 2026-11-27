@@ -1,6 +1,6 @@
 [
  {
-  "id": "IC-1",
+  "id": "IF-1",
   "text": "The student reminder is 5 days in FR-1 and UC-1.1 and 7 days in QR-A.1",
   "ids": [
    "FR-1",
@@ -13,7 +13,7 @@
   "param": "P:reminder:time"
  },
  {
-  "id": "IC-2",
+  "id": "IF-2",
   "text": "Screen S-1.6 shows 55 € while the body and Appendix B say 40 €",
   "ids": [
    "S-1.6"
@@ -23,7 +23,7 @@
   ]
  },
  {
-  "id": "IC-3",
+  "id": "IF-3",
   "text": "Screen S-1.4 shows the nomination deadline 22.03.2027 while the body says 15.03.2027",
   "ids": [
    "S-1.4"

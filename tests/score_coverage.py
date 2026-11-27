@@ -3,11 +3,11 @@
 gap. Usage: score_coverage.py s3/   (from the output directory of run_deterministic.sh)
 Independent (deterministic): inventories, identity, parameter conflicts, verify behaviour, unit parsing, search. The visual findings,
 classifications and results are committed model judgements (contaminated, see README)."""
-import json, shutil, subprocess, sys, tempfile
+import json, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
-import param_check, section_inventory, visual_inventory, judgement
+import param_check, section_inventory, visual_inventory, judgement, prefixes
 from id_index import load_patterns
 d = Path(sys.argv[1]).resolve(); e = json.loads((REPO / "tests/fixtures/coverage/expected.json").read_text(encoding="utf-8")); tot = []
 J = lambda n, base=d: json.loads((base / n).read_text(encoding="utf-8"))
@@ -157,7 +157,7 @@ judged("conditional rule that does not apply stays ➖", lambda r, w: r["R-004"]
        ["| R-004 |"], rejected=False)
 judged("aggregate member turned into ➖", lambda r, w: r["R-005"].update(result="➖"), ["aggregate member R-005 has no ❌/⚠️ row"])
 moved = J("results.json")["R-002"]["evidence"]
-judged("evidence written on the wrong row is warned", lambda r, w: r["R-001"].update(evidence=moved + " (IC-1)", issue="", target_loc=""),
+judged("evidence written on the wrong row is warned", lambda r, w: r["R-001"].update(evidence=moved + " (IF-1)", issue="", target_loc=""),
        ["R-001: evidence uses none of the rule's keywords", "of R-002's"], rejected=False)
 judged("evidence IDs outside the rule's IDs are warned", lambda r, w: (rewrite(w, "rules.json", lambda x: x["rules"][1].update(scope="screen S-1.2")), None)[1],
        ["R-002: evidence IDs", "do not overlap the rule's IDs (S-1.2)"], rejected=False)
@@ -168,26 +168,78 @@ for fix in ("No change needed", "değişiklik yok", "Team decision", "TBD / team
     judged(f"❌ with fix «{fix}»", lambda r, w: r["R-005"].update(fix=fix), ["R-005: ❌ with fix"])
 judged("❌ without a fix", lambda r, w: r["R-005"].pop("fix"), ["R-005: a ❌ row needs a fix"])
 judged("⚖️ without a TBD number", lambda r, w: r["R-009"].update(fix="decide", evidence="the reference gives two values"), ["R-009: a ⚖️ row must cite"])
-judged("contradiction not written on the rule's row", lambda r, w: r["R-001"].update(evidence=r["R-001"]["evidence"].replace(" (IC-1)", "")), ["IC-1: it concerns R-001"])
-judged("finding with neither rule nor reason", lambda r, w: rewrite(w, "internal.json", lambda x: x[2].update(no_rule_reason="")), ["IC-3: list the rules"])
+judged("contradiction not written on the rule's row", lambda r, w: r["R-001"].update(evidence=r["R-001"]["evidence"].replace(" (IF-1)", "")), ["IF-1: it concerns R-001"])
+judged("finding with neither rule nor reason", lambda r, w: rewrite(w, "internal.json", lambda x: x[2].update(no_rule_reason="")), ["IF-3: list the rules"])
 judged("real parameter contradiction not bound", lambda r, w: rewrite(w, "internal.json", lambda x: x[0].pop("param") and None), ["P:reminder:time is a real contradiction"])
 judged("unbound candidate rule is warned", lambda r, w: rewrite(w, "internal.json", lambda x: x[1].update(text=x[1]["text"] + "; the confirmation fee appears before payment")),
-       ["IC-2: may also concern R-002"], rejected=False)
+       ["IF-2: may also concern R-002"], rejected=False)
 judged("result changed after the self-audit", lambda r, w: r["R-005"].update(severity="high"), ["R-005 changed after it was re-checked"], audit=False)
 judged("self-audit left out", lambda r, w: (w / "self_audit.json").unlink(), ["self-audit not run"], audit=False)
 judged("new violation not re-checked", lambda r, w: r["R-004"].update(result="⚠️"), ["R-004 not re-checked"], audit=False)
 rules3 = J("rules.json")["rules"]
-line("self-audit selection: deterministic, all findings plus 10% of ✅",
-     (len(judgement.sample([f"R-{i:03d}" for i in range(1, 101)])), judgement.sample(["R-001", "R-002", "R-003"]) == judgement.sample(["R-003", "R-001", "R-002"])), (10, True))
-line("Turkish İ matches in the evidence-fit check", judgement.has_word("itiraz", "İtiraz süresi"), True)
-with tempfile.TemporaryDirectory() as t:                      # an ID of the document itself in the report is not a broken reference
+# ---------- seeded self-audit ----------
+many = [f"R-{i:03d}" for i in range(1, 101)]
+line("self-audit sample: 10%, reproducible with the seed, different for another seed",
+     (len(judgement.sample(many, "a")), judgement.sample(many, "a") == judgement.sample(many[::-1], "a"), judgement.sample(many, "a") != judgement.sample(many, "b")), (10, True, True))
+seeds = []
+for _ in range(2):
+    with tempfile.TemporaryDirectory() as t:
+        w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+        (w / "self_audit.json").unlink(); rewrite(w, "progress.json", lambda x: [x.pop("audit_seed"), x.pop("audit_seed_source")] and None)
+        res = J("results.json", w); last = res.pop("R-009"); (w / "results.json").write_text(json.dumps(res), encoding="utf-8")
+        early = run("matrix.py", "audit-plan", "rules.json", "results.json", cwd=w)
+        no_seed_yet = "audit_seed" not in J("progress.json", w)
+        res["R-009"] = last; (w / "results.json").write_text(json.dumps(res), encoding="utf-8")
+        run("matrix.py", "audit-plan", "rules.json", "results.json", cwd=w)
+        first = J("self_audit.json", w); seeds.append(first["seed"])
+        if len(seeds) == 1:
+            line("self-audit: no seed (and no selection) before every rule has a result", (early.returncode != 0, no_seed_yet), (True, True))
+            (w / "self_audit.json").unlink()
+            run("matrix.py", "audit-plan", "rules.json", "results.json", cwd=w)
+            other = run("matrix.py", "audit-plan", "rules.json", "results.json", "--seed", "another", cwd=w)
+            again = J("self_audit.json", w)
+            line("self-audit: same seed and selection after deleting the audit file; a second seed refused",
+                 (again["seed"] == first["seed"], again["planned"] == first["planned"], other.returncode != 0), (True, True, True))
+            run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
+            line("self-audit: generated seed stated in the report", f"seed {first['seed']}, generated at the start of the step" in (w / "coverage.md").read_text(encoding="utf-8"), True)
+line("self-audit: every run generates its own seed", len(set(seeds)), 2)
+judged("self-audit seed edited by hand", lambda r, w: rewrite(w, "self_audit.json", lambda x: x.update(seed="picked")), ["seed does not match progress.json"], audit=False)
+
+# ---------- own ID prefixes ----------
+with tempfile.TemporaryDirectory() as t:
+    f = Path(t) / "doc.txt"
+    f.write_text("p1:L1\tFR-1 uses QR-A.1 and UC-3.7\np2:L1\tIC-1, IC-3, IC-4 consistency rules\n", encoding="utf-8")
+    free = prefixes.choose([f])
+    f.write_text("p1:L1\tIC-1 and FR-2\np3:L2\t| R7 | supplier risk |\np3:L3\t| R11 | delay |\np4:L1\tF3 key, TBD-2, IF-4, RC-IF-1\n", encoding="utf-8")
+    used = prefixes.choose([f])
+line("prefixes: IC-, FR-, QR- are no collision", (free["prefixes"], free["collisions"]), (prefixes.DEFAULT, []))
+line("prefixes: R7/R11, F3, TBD-2, IF-4 (with or without hyphen) switch", used["prefixes"], {"rule": "RC-R", "fact": "RC-F", "tbd": "RC-TBD", "finding": "RC2-IF"})
+
+with tempfile.TemporaryDirectory() as t:                      # end to end: the documents use R, F, TBD and IF themselves
     w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
-    with open(w / "ex/target_ui.txt", "a", encoding="utf-8") as fh: fh.write("p14:L99\tRisk R-101 supplier delay\n")
-    with open(w / "report.md", "a", encoding="utf-8") as fh: fh.write("\nThe risk R-101 is listed in the target.\n")
+    with open(w / "ex/ref_policy.txt", "a", encoding="utf-8") as fh: fh.write("p9:L1\t| R7 | supplier | F2 | TBD-4 | IF-1 |\n")
+    stale = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("prefixes: collision with the documents rejected", (stale.returncode != 0, "prefix R- collides" in stale.stdout), (True, True))
+    run("prefixes.py", "ex/target_ui.txt", "ex/ref_policy.txt", "-o", "prefixes.json", cwd=w)
+    old = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("prefixes: old IDs rejected after the switch", "must use the chosen prefix RC-R-" in old.stdout, True)
+    for n in ("rules.json", "results.json", "tbd.json", "internal.json"):
+        p = w / n; p.write_text(re.sub(r"(?<![\w-])(R|F|TBD|IF)-(\d+)", r"RC-\1-\2", p.read_text(encoding="utf-8")), encoding="utf-8")
+    (w / "self_audit.json").unlink(); reaudit(w)
+    run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
+    body = (w / "coverage.md").read_text(encoding="utf-8"); (w / "report.md").write_text("# R\n\nThe policy numbers its risks R7.\n\n" + body, encoding="utf-8")
     r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
-    with open(w / "report.md", "a", encoding="utf-8") as fh: fh.write("see R-101\n")
+    line("prefixes: renumbered run verifies", (r.returncode, "12/12 rules" in r.stdout), (0, True))
+    line("prefixes: choice in the report and in progress.json",
+         ("rules RC-R-, facts RC-F-, decisions RC-TBD-, internal findings RC-IF-" in body, J("progress.json", w)["prefixes"]["rule"]), (True, "RC-R"))
+    res = J("results.json", w); res["RC-R-005"]["fix"] = "RC-TBD-1"; (w / "results.json").write_text(json.dumps(res), encoding="utf-8")
+    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    res["RC-R-005"].update(fix="add it", evidence=res["RC-R-005"]["evidence"] + "; see RC-R-099"); (w / "results.json").write_text(json.dumps(res), encoding="utf-8")
     r2 = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
-    line("report: document ID accepted, «see R-101» rejected", (r.returncode, r2.returncode != 0, "R-101 is not a row" in r2.stdout), (0, True, True))
+    line("prefixes: verdict and reference checks follow the new prefix",
+         ("RC-R-005: ❌ with fix" in r.stdout, "RC-R-099 is not a row" in r2.stdout), (True, True))
+judged("prefixes never chosen", lambda r, w: (w / "prefixes.json").unlink(), ["ID prefixes not chosen"])
+line("Turkish İ matches in the evidence-fit check", judgement.has_word("itiraz", "İtiraz süresi"), True)
 pats, _ = load_patterns()
 line("IDs: use-case exception steps and internal findings", sorted(judgement.ids_in("UC-3.7.EX.2 and UC-3.7.EX.1 vs S-4.1, IC-3. See UC-3.7.", pats)),
      ["IC-3", "S-4.1", "UC-3.7", "UC-3.7.EX.1", "UC-3.7.EX.2"])

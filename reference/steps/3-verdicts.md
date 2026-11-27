@@ -15,4 +15,4 @@
 Quote the target place that decides THIS rule, using the rule's IDs and terms. The report warns when the evidence IDs do not overlap the rule's IDs, or when it uses another rule's keywords and none of its own: check each warning. References such as `see R-012`, `see F-003`, `TBD-2` must exist, otherwise `verify` fails.
 
 ## Contradictions inside the target
-If a contradiction found in step 2, 4 or 5 (e.g. a use-case exception against a screen) falls under a rule's topic, write it on that rule's row too, with its `IC-n` number (see `4-internal.md`), and let it influence the result.
+If a contradiction found in step 2, 4 or 5 (e.g. a use-case exception against a screen) falls under a rule's topic, write it on that rule's row too, with its `IF-n` number (see `4-internal.md`), and let it influence the result.

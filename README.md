@@ -18,7 +18,9 @@ Asked to "check this document against that rules PDF", a model tends to find a f
 - a document you named was replaced by a section of the target without saying so,
 - a "section X is missing" finding hides the single missing items, or an absent open question is marked "not applicable",
 - evidence points to a rule or decision that does not exist, a ❌ needs no change, or a contradiction inside the target is not written on the rules it concerns,
-- the final self-audit (every finding and 10% of the compliant rows, re-read against the source) is unfinished.
+- the final self-audit (every finding and a random 10% of the compliant rows, re-read against the source; the seed is printed in the report) is unfinished.
+
+If your documents already number things `R7`, `F-2`, `TBD-1` or `IF-3`, the skill switches its own IDs to `RC-R-`, `RC-F-` … so they cannot be confused.
 
 On top of that, deterministic scripts do what a model should not do by eye (text extraction with page/line numbers, cross-reference and ID checks, number/unit consistency, document diffs), and the model looks at page images for what text extraction cannot see (screenshots, figures).
 
@@ -83,6 +85,7 @@ All are standard-library Python; run them as `python3 scripts/<name>.py …` (se
 | `section_inventory.py` | reference section structure and classification; matches the documents the user named to files |
 | `param_check.py`, `param_concepts.json` | number+unit values (English and Turkish) per concept; conflicts with the references and the process model |
 | `search.py` | many terms, or the candidates of 20 rules, in one call |
+| `prefixes.py` | picks own ID prefixes that do not occur in the documents |
 | `judgement.py` | checks on the verdicts themselves, self-audit selection (used by `matrix.py`) |
 | `progress.py` | `work/progress.json`, to resume long runs |
 | `model_check.py` | process-model validation, invariant checks (model and document), Mermaid output, version `bump` |
@@ -102,6 +105,7 @@ The processes of a document (steps, actors, order, conditions, durations, except
 - On multi-column pages the default layout mode interleaves columns; use `extract.py --reading-order`.
 - The visual pass depends on Claude reading page images; for DOCX it needs LibreOffice or a PDF export. `verify` checks that every inventory page has a log row, not that the model looked carefully.
 - Evidence-fit, aggregate wording and "which rules does this contradiction concern" are heuristics that only warn; an aggregate written without its member list can go unnoticed.
+- The self-audit seed is guarded by `progress.json`; deleting both work files would allow a new draw. Prefix collisions are found in extracted text only, not inside images.
 - Visual inventory, section detection and parameter binding are heuristics: images need pypdf, headings must look like headings, and spelled-out numbers are recognised only up to twelve.
 - Heuristics (ID definition vs reference, number/unit concepts) can produce false positives; `SKILL.md` requires verifying each finding in the document.
 - Verified on synthetic documents only; check it on your own PDFs before relying on it (an extraction disagreement shows up as a warning).

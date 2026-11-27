@@ -18,7 +18,8 @@ Result values: ✅ ❌ ⚠️ ➖ ❓ ⚖️ ; evidence is required for ✅/❌/
 ⚖️ = reference contradiction / team decision (never ❌ when the target needs no change); it cites TBD-n from tbd.json.
 results.json fields: result, evidence, [target_loc, issue, fix (required for ❌), severity, members (aggregate findings)]
 
-  audit-plan rules.json results.json [-o self_audit.json]      self-audit: every ❌/⚠️/⚖️ row plus 10% of ✅ (deterministic selection)
+  audit-plan rules.json results.json [-o self_audit.json]      self-audit: every ❌/⚠️/⚖️ row plus a seeded random 10% of ✅
+                                                               (--seed only to reproduce a selection; needs a result for every rule)
   audit-record rules.json results.json self_audit.json part.json
                                                                part: {"R-001": {"source": "what was re-read", "note": "why it changed"}};
                                                                change a verdict with set-bulk BEFORE recording it
@@ -122,6 +123,11 @@ def cmd_status(a):
 def cell(s): return str(s or "").replace("|", "¦").replace("\n", " ")
 
 
+def judgement_own(work):
+    import judgement, prefixes
+    return judgement.Own(prefixes.load(work)[0])
+
+
 def cmd_coverage(a):
     import gates
     rules = load_rules(a.rules)
@@ -139,7 +145,8 @@ def cmd_coverage(a):
         L.append(f"| {r['id']} | {cell(srcs)} | {sym} | {cell(v['evidence'])} |")
         if sym in ("❌", "⚠️"):
             viol.append((r, v, sym, srcs))
-    nf = sum(1 for r in rules if gates.is_fact(r))
+    own = judgement_own(a.work or Path(a.rules).parent)
+    nf = sum(1 for r in rules if own.is_fact(r))
     total = f"Total rules: {len(rules) - nf}" + (f", facts: {nf}" if nf else "")
     head = [f"{total} — " + ", ".join(f"{k} {n}" for k, n in cnt.items()), ""]
     V = ["", "| # | Rule | Source | Target location | Issue | Suggested fix | Severity |", "|---|---|---|---|---|---|---|"]
@@ -165,7 +172,8 @@ def cmd_verify(a):
     if not m:
         print("VERIFICATION FAILED — no 'Coverage' (or Turkish 'Kapsama') section heading found in the report"); sys.exit(1)
     sect = m.group(1)
-    rows = re.findall(r"^\|\s*([RF]-\d+)\s*\|([^\n]*)$", sect, re.M)
+    p = judgement_own(a.work or Path(a.rules).parent).p
+    rows = re.findall(rf"^\|\s*((?:{re.escape(p['rule'])}|{re.escape(p['fact'])})-\d+)\s*\|([^\n]*)$", sect, re.M)
     got = [r[0] for r in rows]; err = []
     if len(got) != len(ids): err.append(f"Row count {len(got)} ≠ rule count {len(ids)}")
     miss = [i for i in ids if i not in got]; dup = sorted({i for i in got if got.count(i) > 1}); unk = [i for i in got if i not in ids]
@@ -189,9 +197,21 @@ def cmd_audit_plan(a):
     rules = load_rules(a.rules); res = json.loads(Path(a.results).read_text(encoding="utf-8"))
     out = Path(a.out or Path(a.results).parent / "self_audit.json")
     old = json.loads(out.read_text(encoding="utf-8")) if out.exists() else None
-    audit = judgement.audit_plan(rules, res, old)
+    if old and "seed" not in old:
+        print("NOTE: the existing self-audit file has no seed (older version): starting a new one"); old = None
+    missing = [r["id"] for r in rules if r["id"] not in res]
+    if missing:
+        sys.exit(f"self-audit starts after the main pass: {len(missing)} rule(s) have no result yet ({', '.join(missing[:5])} …)")
+    state_path = out.parent / "progress.json"; state = progress.load(state_path); recorded = state.get("audit_seed")
+    if a.seed and recorded and a.seed != recorded:
+        sys.exit(f"this run's self-audit already has the seed {recorded}; a second seed is not accepted")
+    seed = (old or {}).get("seed") or recorded or a.seed or judgement.new_seed()
+    source = (old or {}).get("seed_source") or state.get("audit_seed_source") or ("supplied by hand" if a.seed else "generated at the start of the step")
+    audit = judgement.audit_plan(rules, res, old, seed, source)
+    state.update(audit_seed=seed, audit_seed_source=source); progress.save(state_path, state)
     out.write_text(json.dumps(audit, ensure_ascii=False, indent=1), encoding="utf-8")
     todo = [i for i in audit["planned"] if i not in audit["checks"]]
+    print(f"self-audit seed {audit['seed']} ({audit['seed_source']})")
     print(f"self-audit: {len(audit['planned'])} rows to re-check against the source, {len(todo)} open -> {out}")
     for i in todo:
         r = next(r for r in rules if r["id"] == i); src = r.get("source", {})
@@ -256,7 +276,7 @@ def main():
     p = sp.add_parser("status"); p.add_argument("rules"); p.add_argument("results"); p.set_defaults(f=cmd_status)
     p = sp.add_parser("coverage"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out", default="coverage.md"); p.add_argument("--env"); p.add_argument("--visual"); p.add_argument("--work"); p.add_argument("--patterns"); p.set_defaults(f=cmd_coverage)
     p = sp.add_parser("verify"); p.add_argument("rules"); p.add_argument("report"); p.add_argument("--work"); p.add_argument("--env"); p.add_argument("--results"); p.add_argument("--patterns"); p.set_defaults(f=cmd_verify)
-    p = sp.add_parser("audit-plan"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out"); p.set_defaults(f=cmd_audit_plan)
+    p = sp.add_parser("audit-plan"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out"); p.add_argument("--seed"); p.set_defaults(f=cmd_audit_plan)
     p = sp.add_parser("audit-record"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("audit"); p.add_argument("part"); p.set_defaults(f=cmd_audit_record)
     a = ap.parse_args(); a.f(a)
 

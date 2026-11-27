@@ -112,14 +112,14 @@ def only_section(secs, name):
     sys.exit(f"section {name!r} not found; headings: " + "; ".join(f"{s['number']} {s['title']}" for s in secs))
 
 
-def evaluate(data, rules):
+def evaluate(data, rules, fact_prefix="F"):
     """(per-section rows, errors, warnings). rules: the rule/fact register (list)."""
     secs = data["sections"]; ids = {s["id"] for s in secs}
     by = {}
     errors, warnings = [], []
     for r in rules:
         sid = (r.get("source") or {}).get("section")
-        kind = "fact" if r.get("kind") == "fact" or r["id"].startswith("F-") else "rule"
+        kind = "fact" if r.get("kind") == "fact" or r["id"].startswith(fact_prefix + "-") else "rule"
         if not sid:
             errors.append(f"{r['id']}: source.section is missing (which reference section does it come from?)"); continue
         if sid not in ids:
@@ -133,7 +133,7 @@ def evaluate(data, rules):
         elif c == "rule-bearing" and not got["rule"]:
             errors.append(f"{s['id']}: rule-bearing but no rule was extracted from it")
         elif c == "fact" and not got["fact"]:
-            errors.append(f"{s['id']}: class 'fact' but no F-… fact record points to it")
+            errors.append(f"{s['id']}: class 'fact' but no fact record points to it")
         elif c in ("descriptive-only", "open-question") and not str(s.get("reason", "")).strip():
             errors.append(f"{s['id']}: {c} needs a one-line reason")
         sg = s["signals"]
