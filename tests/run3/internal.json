@@ -10,7 +10,10 @@
   "rules": [
    "R-001"
   ],
-  "param": "P:reminder:time"
+  "param": "P:reminder:time",
+  "self_rules": [
+   "SD-001"
+  ]
  },
  {
   "id": "IF-2",
@@ -20,6 +23,9 @@
   ],
   "rules": [
    "R-003"
+  ],
+  "self_rules": [
+   "SD-002"
   ]
  },
  {
@@ -29,6 +35,8 @@
    "S-1.4"
   ],
   "rules": [],
-  "no_rule_reason": "no reference rule covers the nomination deadline"
+  "self_rules": [
+   "SD-003"
+  ]
  }
 ]

@@ -1,0 +1,9 @@
+{
+ "target_ui#4.1": {
+  "class": "self-rules"
+ },
+ "target_ui#list:FR": {
+  "class": "not-rules",
+  "reason": "functional requirements, judged against the reference rules"
+ }
+}

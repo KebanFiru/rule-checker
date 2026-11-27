@@ -3,9 +3,6 @@
   "source": "re-read p3 FR-1, p6 UC-1.1, p9 QR-A.1; ref_policy section 2",
   "note": "two places comply and one does not: partial, not a full violation"
  },
- "R-002": {
-  "source": "re-read p3 FR-2, p13 S-1.6"
- },
  "R-003": {
   "source": "re-read p13 screen and body, p14 Appendix B table"
  },
@@ -26,5 +23,17 @@
  },
  "F-001": {
   "source": "re-read p3 FR-3; ref_policy section 3"
+ },
+ "SD-001": {
+  "source": "re-read target p8 IC-1; p3, p6, p9"
+ },
+ "SD-002": {
+  "source": "re-read target p8 IC-2; p13, p14"
+ },
+ "SD-003": {
+  "source": "re-read target p8 IC-3; p11"
+ },
+ "SD-004": {
+  "source": "re-read target p8 IC-4; p6 UC-1.1 is the only use case"
  }
 }

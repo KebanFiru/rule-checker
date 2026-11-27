@@ -50,6 +50,8 @@ def main():
         save(a.file, d)
     if d.get("prefixes"):
         print("ID prefixes: " + ", ".join(f"{k} {v}-" for k, v in d["prefixes"].items()))
+    if d.get("extract_dirs"):
+        print("extracted text in: " + ", ".join(d["extract_dirs"]))
     if d.get("audit_seed"):
         print(f"self-audit seed: {d['audit_seed']} ({d.get('audit_seed_source', '')})")
     for k, v in d["steps"].items():

@@ -93,7 +93,8 @@ def main():
             part = rules[(b - 1) * a.size:b * a.size]
             if not part:
                 sys.exit(f"block {b} is empty ({len(rules)} rules, {n} blocks)")
-            path = outdir / f"candidates_part_{b:02d}.md"
+            stem = Path(a.rules).stem
+            path = outdir / (f"candidates_part_{b:02d}.md" if stem == "rules" else f"candidates_{stem}_part_{b:02d}.md")
             path.write_text("\n".join([f"# Candidates, rules {part[0]['id']}..{part[-1]['id']} (block {b}/{n}). Hints only."] + rule_block(docs, part, a.max)) + "\n", encoding="utf-8")
             print(f"{path}: {len(part)} rules")
         return

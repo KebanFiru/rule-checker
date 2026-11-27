@@ -15,6 +15,7 @@ import hashlib, json, math, re, secrets
 from pathlib import Path
 from id_index import load_patterns, norm_id
 import prefixes
+import self_rules as self_rules_mod
 
 DECISION = "⚖️"
 BAD = ("❌", "⚠️", DECISION)
@@ -32,12 +33,17 @@ class Own:
     """Regexes for the skill's own IDs under the run's prefixes (see prefixes.py)."""
     def __init__(self, p=None):
         self.p = p or dict(prefixes.DEFAULT)
-        rf = f"(?:{re.escape(self.p['rule'])}|{re.escape(self.p['fact'])})"
+        rf = "(?:" + "|".join(re.escape(self.p[k]) for k in ("rule", "fact", "self")) + ")"
         tbd = re.escape(self.p["tbd"])
         self.row_ref = re.compile(rf"(?<![\w-]){rf}-\d{{3}}\b|(?i:\b(?:see|bkz\.?)\s+)(?<![\w-])({rf}-\d+)\b")
         self.tbd_ref = re.compile(rf"(?<![\w-]){tbd}-\d+\b")
         self.any = re.compile(rf"(?<![\w-])(?:{rf}|{tbd}|{re.escape(self.p['finding'])})-\d+\b")
         self.tbd_first = re.compile(rf"^\W*{tbd}-\d")
+
+    def kind(self, r):
+        if r.get("kind") == "fact" or r["id"].startswith(self.p["fact"] + "-"):
+            return "fact"
+        return "self" if r.get("kind") == "self" or r["id"].startswith(self.p["self"] + "-") else "rule"
 
     def is_fact(self, r):
         return r.get("kind") == "fact" or r["id"].startswith(self.p["fact"] + "-")
@@ -161,7 +167,7 @@ def verdict_problem(v, own):
 
 
 # ---------- 3) internal contradictions ----------
-def check_internal(findings, rules, res, patterns, keywords, params, verdicts, own):
+def check_internal(findings, rules, res, patterns, keywords, params, verdicts, own, self_rules=(), self_res=None):
     errors, warnings, seen = [], [], set()
     by = {r["id"]: r for r in rules}
     for f in findings:
@@ -171,8 +177,19 @@ def check_internal(findings, rules, res, patterns, keywords, params, verdicts, o
         if fid in seen: errors.append(f"{fid}: duplicate internal finding id")
         seen.add(fid)
         listed = f.get("rules") or []
-        if not listed and not str(f.get("no_rule_reason", "")).strip():
-            errors.append(f"{fid}: list the rules it concerns, or give no_rule_reason")
+        mine = f.get("self_rules") or []
+        if not listed and not mine and not str(f.get("no_rule_reason", "")).strip():
+            errors.append(f"{fid}: list the rules it concerns (rules / self_rules), or give no_rule_reason")
+        by_self = {r["id"]: r for r in self_rules}
+        for sid in mine:
+            if sid not in by_self:
+                errors.append(f"{fid}: {sid} is not in self_rules.json")
+            elif not re.search(r"(?<![\w-])" + re.escape(fid) + r"(?!\d)", text_of((self_res or {}).get(sid))):
+                errors.append(f"{fid}: it concerns {sid} but the row of {sid} does not mention {fid}")
+        said = f"{f.get('text', '')} {' '.join(f.get('ids') or [])}"
+        for sid, r in by_self.items():
+            if r.get("doc_id") and sid not in mine and self_rules_mod.occurs(r["doc_id"], said):
+                errors.append(f"{fid}: mentions {r['doc_id']} (the target's own rule {sid}) but \"self_rules\" does not list {sid}")
         for rid in listed:
             if rid not in by:
                 errors.append(f"{fid}: rule {rid} is not in the register")
@@ -186,6 +203,10 @@ def check_internal(findings, rules, res, patterns, keywords, params, verdicts, o
                 words = [w for w in keywords(r) if has_word(w, low)]
                 if shared or len(words) >= 2:
                     warnings.append(f"{fid}: may also concern {rid} ({', '.join(sorted(shared)) or ', '.join(words[:4])}); bind it or ignore after checking")
+    for r in self_rules:
+        sid = r["id"]; v = (self_res or {}).get(sid)
+        if sym(v) in ("❌", "⚠️") and not any(sid in (f.get("self_rules") or []) for f in findings):
+            errors.append(f"{sid}: the target breaks its own rule ({r.get('doc_id', '')}) but no internal finding binds it (\"self_rules\": [\"{sid}\"])")
     if params:
         covered = {f.get("param") for f in findings}
         for c in params["conflicts"]:
@@ -247,6 +268,12 @@ def check_audit(rules, res, audit):
     return errors, need, done, changed
 
 
+def self_register(work):
+    """(the target's own rules, their results); empty when not used."""
+    data, res = read(work, "self_rules.json"), read(work, "self_results.json")
+    return (data["rules"] if isinstance(data, dict) else data) or [], res or {}
+
+
 # ---------- everything, for gates.collect ----------
 def collect(work, rules, res, patterns_file=None, report_text=None):
     """{summary, sections, required, errors, skipped}"""
@@ -257,6 +284,8 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
     chosen, prefix_data = prefixes.load(work); own = Own(chosen)
     out = {"summary": [], "sections": [], "required": [], "errors": [], "skipped": []}
     sections, tbd, findings = read(work, "ref_sections.json"), read(work, "tbd.json"), read(work, "internal.json")
+    mine, mine_res = self_register(work)
+    files, errs = prefixes.texts(work); out["errors"] += errs
     params, verdicts = read(work, "params.json"), read(work, "param_verdicts.json")
 
     if prefix_data is None:
@@ -264,27 +293,59 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
         out["errors"].append("ID prefixes not chosen: run prefixes.py on the extracted target and references (work/prefixes.json)")
     else:
         out["summary"].append(prefixes.describe(prefix_data))
-        texts_now = sorted(str(p) for p in (Path(work) / "ex").glob("*.txt") if not p.name.endswith((".second.txt", ".tables.txt")))
         for kind, p in chosen.items():
-            used = prefixes.first_use(p, texts_now)
+            used = prefixes.first_use(p, files)
             if used: out["errors"].append(f"the {prefixes.LABEL[kind]} prefix {p}- collides with the documents ({used}): run prefixes.py again and renumber")
-    for r in rules:
-        want = chosen["fact" if r.get("kind") == "fact" or r["id"].startswith(chosen["fact"] + "-") else "rule"]
+    for r, kind in [(r, own.kind(r)) for r in rules] + [(r, "self") for r in mine]:
+        want = chosen[kind]
         if not re.fullmatch(re.escape(want) + r"-\d+", r["id"]):
             out["errors"].append(f"{r['id']}: register IDs must use the chosen prefix {want}-")
+    for r in rules:
+        if own.kind(r) == "self":
+            out["errors"].append(f"{r['id']}: the target's own rules belong in self_rules.json, not in the reference register")
     for t in tbd or []:
         if not re.fullmatch(re.escape(chosen["tbd"]) + r"-\d+", str(t.get("id", ""))):
             out["errors"].append(f"tbd.json {t.get('id')}: decision IDs must use the chosen prefix {chosen['tbd']}-")
-    for rid, v in res.items():
+    for rid, v in {**res, **mine_res}.items():
         problem = verdict_problem(v, own)
         if problem: out["errors"].append(f"{rid}: {problem}")
-    errs, warnings = check_aggregates(rules, res, sections, own); out["errors"] += errs
+    errs, warnings = check_aggregates(rules + mine, {**res, **mine_res}, sections, own); out["errors"] += errs
     w, checked, blind = check_evidence(rules, res, patterns, keywords, own); warnings += w
 
-    texts = [(f"results of {rid}", text_of(v)) for rid, v in res.items()]
+    texts = [(f"results of {rid}", text_of(v)) for rid, v in {**res, **mine_res}.items()]
     texts += [(f"internal finding {f.get('id')}", str(f.get("text", ""))) for f in findings or []]
     if report_text: texts.append(("the report", report_text))
-    out["errors"] += check_references(rules, texts, tbd, own)
+    out["errors"] += check_references(rules + mine, texts, tbd, own)
+
+    # ---------- the target's own rules ----------
+    declared = read(work, "self_sections.json")
+    if declared is None:
+        out["summary"].append("- Target's own rules: NOT RUN (self_rules.py scan)"); out["skipped"].append(("target's own rules", "step not run", 1))
+        if mine: out["errors"].append("self_rules.json exists but self_rules.py scan was not run (self_sections.json)")
+    else:
+        target = next((f for f in files if Path(f).stem == declared["doc"]), None)
+        if target is None: out["errors"].append(f"target's own rules: the extracted target {declared['doc']}.txt was not found")
+        out["errors"] += self_rules_mod.check(declared, mine, mine_res, Path(target).read_text(encoding="utf-8") if target else None)
+        copied = {r.get("doc_id") for r in mine if r.get("doc_id")}
+        for r in rules:
+            src = r.get("source") or {}; quote = str(src.get("quote", ""))
+            hit = next((d for d in sorted(copied) if quote.startswith(d) and self_rules_mod.occurs(d, quote)), None)
+            if hit and Path(str(src.get("doc", ""))).stem == declared["doc"]:
+                out["errors"].append(f"{r['id']}: {hit} is the target's own rule: register it only in self_rules.json (the target would verify itself)")
+        done = sum(1 for c in declared["candidates"] if c.get("class") in self_rules_mod.CLASSES)
+        tally = ", ".join(f"{k} {n}" for k in ("✅", "❌", "⚠️", "➖", "❓", DECISION) if (n := sum(1 for r in mine if sym(mine_res.get(r["id"])) == k)))
+        out["summary"].append(f"- Target's own rules: {len(mine)} (judged separately, not part of reference coverage): {tally or 'none'}; candidates classified {done}/{len(declared['candidates'])}")
+        out["sections"] += ["## Target's own rules (self-declared)", "| Candidate | Kind | Declared IDs | Class | Reason |", "|---|---|---|---|---|"]
+        for c in declared["candidates"]:
+            line = f"| {cell(c['id'])} | {c['kind']} | {cell(', '.join(c['ids']))} | {c.get('class') or '**UNCLASSIFIED**'} | {cell(c.get('reason'))} |"
+            out["sections"].append(line); out["required"].append(line)
+        out["sections"] += ["", "| Own rule | Declared as | Result | Evidence | Issue | Suggested fix |", "|---|---|---|---|---|---|"]
+        for r in mine:
+            v = mine_res.get(r["id"]) or {}; src = r.get("source") or {}
+            line = (f"| {r['id']} | {cell(r.get('doc_id') or src.get('section'))} p{src.get('page', '?')} | {sym(v) or '**NO RESULT**'} | {cell(v.get('evidence'))} | "
+                    f"{cell(v.get('issue'))} | {cell(v.get('fix'))} |")
+            out["sections"].append(line); out["required"].append(line)
+        out["sections"].append("")
 
     decisions = [r["id"] for r in rules if sym(res.get(r["id"])) == DECISION]
     if decisions:
@@ -300,12 +361,12 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
     if findings is None:
         out["summary"].append("- Internal findings: NOT RUN (work/internal.json)"); out["skipped"].append(("internal findings bound to rules", "step not run", 1))
     else:
-        errs, w = check_internal(findings, rules, res, patterns, keywords, params, verdicts, own); out["errors"] += errs; warnings += w
-        bound = sum(1 for f in findings if f.get("rules"))
+        errs, w = check_internal(findings, rules, res, patterns, keywords, params, verdicts, own, mine, mine_res); out["errors"] += errs; warnings += w
+        bound = sum(1 for f in findings if f.get("rules") or f.get("self_rules"))
         out["summary"].append(f"- Internal findings: {len(findings)} (bound to rules: {bound}, without a rule: {len(findings) - bound})")
         out["sections"] += ["## Internal findings bound to rules", "| Finding | IDs | Rules | Text |", "|---|---|---|---|"]
         for f in findings:
-            line = f"| {f.get('id')} | {cell(', '.join(f.get('ids') or []))} | {cell(', '.join(f.get('rules') or []) or 'none: ' + str(f.get('no_rule_reason', '')))} | {cell(f.get('text'))} |"
+            line = f"| {f.get('id')} | {cell(', '.join(f.get('ids') or []))} | {cell(', '.join((f.get('rules') or []) + (f.get('self_rules') or [])) or 'none: ' + str(f.get('no_rule_reason', '')))} | {cell(f.get('text'))} |"
             out["sections"].append(line); out["required"].append(line)
         out["sections"].append("")
 
@@ -322,7 +383,7 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
             out["errors"].append("self-audit not run: matrix.py audit-plan, re-check the rows, audit-record (or record the step as skipped with a reason)")
             out["skipped"].append(("self-audit", "step not run", 1))
     else:
-        errs, need, done, changed = check_audit(rules, res, audit)
+        errs, need, done, changed = check_audit(rules + mine, {**res, **mine_res}, audit)
         if not skip: out["errors"] += errs
         line = f"- Self-audit: re-checked {len(done)}/{len(need)} planned rows (all ❌/⚠️/{DECISION} and a random 10% of ✅; seed {audit['seed']}, {audit.get('seed_source', '?')}); changed: {len(changed)}"
         out["summary"].append(line)

@@ -61,7 +61,13 @@ python3 $S/matrix.py status work/rules.json work/results.json
 ```
 
 **4. Internal consistency** — references, IDs, values, names, screens vs body → `work/internal.md`; every contradiction also into `work/internal.json`, as `IF-n`, bound to the rules it concerns (decisions: `work/tbd.json`).
-▶ On starting this step read only: `reference/steps/4-internal.md`
+▶ On starting this step read only: `reference/steps/4-internal.md` and `reference/steps/4-self-rules.md`
+Check the whole target against the rules it declares itself (`SD-n`, separate from the reference register):
+```bash
+python3 $S/self_rules.py scan work/ex/target.txt -o work/self_sections.json
+python3 $S/self_rules.py classify work/self_sections.json work/self_classes.json
+python3 $S/matrix.py set-bulk work/self_results.json work/self_part_01.json
+```
 
 **5. Visual pass** — EVERY inventory page gets a log row; Read tool in batches of up to 20 pages.
 ▶ On starting this step read only: `reference/steps/5-visual.md`

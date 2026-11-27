@@ -7,7 +7,7 @@ import json, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
-import param_check, section_inventory, visual_inventory, judgement, prefixes
+import param_check, section_inventory, visual_inventory, judgement, prefixes, self_rules
 from id_index import load_patterns
 d = Path(sys.argv[1]).resolve(); e = json.loads((REPO / "tests/fixtures/coverage/expected.json").read_text(encoding="utf-8")); tot = []
 J = lambda n, base=d: json.loads((base / n).read_text(encoding="utf-8"))
@@ -169,7 +169,7 @@ for fix in ("No change needed", "değişiklik yok", "Team decision", "TBD / team
 judged("❌ without a fix", lambda r, w: r["R-005"].pop("fix"), ["R-005: a ❌ row needs a fix"])
 judged("⚖️ without a TBD number", lambda r, w: r["R-009"].update(fix="decide", evidence="the reference gives two values"), ["R-009: a ⚖️ row must cite"])
 judged("contradiction not written on the rule's row", lambda r, w: r["R-001"].update(evidence=r["R-001"]["evidence"].replace(" (IF-1)", "")), ["IF-1: it concerns R-001"])
-judged("finding with neither rule nor reason", lambda r, w: rewrite(w, "internal.json", lambda x: x[2].update(no_rule_reason="")), ["IF-3: list the rules"])
+judged("finding with neither rule nor reason", lambda r, w: rewrite(w, "internal.json", lambda x: x[2].update(no_rule_reason="", self_rules=[])), ["IF-3: list the rules"])
 judged("real parameter contradiction not bound", lambda r, w: rewrite(w, "internal.json", lambda x: x[0].pop("param") and None), ["P:reminder:time is a real contradiction"])
 judged("unbound candidate rule is warned", lambda r, w: rewrite(w, "internal.json", lambda x: x[1].update(text=x[1]["text"] + "; the confirmation fee appears before payment")),
        ["IF-2: may also concern R-002"], rejected=False)
@@ -210,28 +210,28 @@ with tempfile.TemporaryDirectory() as t:
     f = Path(t) / "doc.txt"
     f.write_text("p1:L1\tFR-1 uses QR-A.1 and UC-3.7\np2:L1\tIC-1, IC-3, IC-4 consistency rules\n", encoding="utf-8")
     free = prefixes.choose([f])
-    f.write_text("p1:L1\tIC-1 and FR-2\np3:L2\t| R7 | supplier risk |\np3:L3\t| R11 | delay |\np4:L1\tF3 key, TBD-2, IF-4, RC-IF-1\n", encoding="utf-8")
+    f.write_text("p1:L1\tIC-1 and FR-2\np3:L2\t| R7 | supplier risk |\np3:L3\t| R11 | delay |\np4:L1\tF3 key, TBD-2, IF-4, RC-IF-1, SD7\n", encoding="utf-8")
     used = prefixes.choose([f])
 line("prefixes: IC-, FR-, QR- are no collision", (free["prefixes"], free["collisions"]), (prefixes.DEFAULT, []))
-line("prefixes: R7/R11, F3, TBD-2, IF-4 (with or without hyphen) switch", used["prefixes"], {"rule": "RC-R", "fact": "RC-F", "tbd": "RC-TBD", "finding": "RC2-IF"})
+line("prefixes: R7/R11, F3, TBD-2, IF-4 (with or without hyphen) switch", used["prefixes"], {"rule": "RC-R", "fact": "RC-F", "self": "RC-SD", "tbd": "RC-TBD", "finding": "RC2-IF"})
 
 with tempfile.TemporaryDirectory() as t:                      # end to end: the documents use R, F, TBD and IF themselves
     w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
-    with open(w / "ex/ref_policy.txt", "a", encoding="utf-8") as fh: fh.write("p9:L1\t| R7 | supplier | F2 | TBD-4 | IF-1 |\n")
+    with open(w / "ex/ref_policy.txt", "a", encoding="utf-8") as fh: fh.write("p9:L1\t| R7 | supplier | F2 | TBD-4 | IF-1 | SD-1 |\n")
     stale = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
     line("prefixes: collision with the documents rejected", (stale.returncode != 0, "prefix R- collides" in stale.stdout), (True, True))
     run("prefixes.py", "ex/target_ui.txt", "ex/ref_policy.txt", "-o", "prefixes.json", cwd=w)
     old = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
     line("prefixes: old IDs rejected after the switch", "must use the chosen prefix RC-R-" in old.stdout, True)
-    for n in ("rules.json", "results.json", "tbd.json", "internal.json"):
-        p = w / n; p.write_text(re.sub(r"(?<![\w-])(R|F|TBD|IF)-(\d+)", r"RC-\1-\2", p.read_text(encoding="utf-8")), encoding="utf-8")
+    for n in ("rules.json", "results.json", "self_rules.json", "self_results.json", "tbd.json", "internal.json"):
+        p = w / n; p.write_text(re.sub(r"(?<![\w-])(R|F|SD|TBD|IF)-(\d+)", r"RC-\1-\2", p.read_text(encoding="utf-8")), encoding="utf-8")
     (w / "self_audit.json").unlink(); reaudit(w)
     run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
     body = (w / "coverage.md").read_text(encoding="utf-8"); (w / "report.md").write_text("# R\n\nThe policy numbers its risks R7.\n\n" + body, encoding="utf-8")
     r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
     line("prefixes: renumbered run verifies", (r.returncode, "12/12 rules" in r.stdout), (0, True))
     line("prefixes: choice in the report and in progress.json",
-         ("rules RC-R-, facts RC-F-, decisions RC-TBD-, internal findings RC-IF-" in body, J("progress.json", w)["prefixes"]["rule"]), (True, "RC-R"))
+         ("rules RC-R-, facts RC-F-, target's own rules RC-SD-, decisions RC-TBD-, internal findings RC-IF-" in body, J("progress.json", w)["prefixes"]["rule"]), (True, "RC-R"))
     res = J("results.json", w); res["RC-R-005"]["fix"] = "RC-TBD-1"; (w / "results.json").write_text(json.dumps(res), encoding="utf-8")
     r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
     res["RC-R-005"].update(fix="add it", evidence=res["RC-R-005"]["evidence"] + "; see RC-R-099"); (w / "results.json").write_text(json.dumps(res), encoding="utf-8")
@@ -239,6 +239,63 @@ with tempfile.TemporaryDirectory() as t:                      # end to end: the 
     line("prefixes: verdict and reference checks follow the new prefix",
          ("RC-R-005: ❌ with fix" in r.stdout, "RC-R-099 is not a row" in r2.stdout), (True, True))
 judged("prefixes never chosen", lambda r, w: (w / "prefixes.json").unlink(), ["ID prefixes not chosen"])
+# ---------- the target's own rules (self-declared) ----------
+own_part = rep.split("## Target's own rules (self-declared)")[1].split("\n## ")[0]
+cov_part = rep.split("## Coverage table")[1].split("\n## ")[0]
+line("own rules: separate section, none in the coverage table, no source-assumption mark",
+     (own_part.count("| SD-00"), "SD-0" in cov_part.replace("(IF-", ""), "source assumption" in own_part), (4, False, False))
+with tempfile.TemporaryDirectory() as t:                      # without them the reference counts are exactly the same
+    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+    for n in ("self_rules.json", "self_results.json", "self_sections.json", "self_audit.json"): (w / n).unlink()
+    rewrite(w, "internal.json", lambda x: [f.pop("self_rules") and f.setdefault("no_rule_reason", "test") for f in x if "self_rules" in f] and None)
+    run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
+    counts = lambda body: [l for l in body.splitlines() if l.startswith(("- Rules:", "- Reference coverage", "Total rules"))]
+    line("own rules: reference and rule counts unchanged by them", (len(counts(rep)), counts((w / "coverage.md").read_text(encoding="utf-8")) == counts(rep)), (3, True))
+
+
+def own(w, name, fn):
+    rewrite(w, name, fn)
+
+
+judged("declared own rule without a row", lambda r, w: own(w, "self_rules.json", lambda x: x["rules"].pop(1) and None), ["IC-2 is declared in target_ui#4.1 but has no row"])
+judged("own rule with an invented ID", lambda r, w: own(w, "self_rules.json", lambda x: x["rules"][3].update(doc_id="IC-9")), ["doc_id IC-9 does not occur"])
+judged("own rule without a result", lambda r, w: own(w, "self_results.json", lambda x: x.pop("SD-004") and None), ["SD-004: the target's own rule has no result"])
+judged("broken own rule not bound to a finding", lambda r, w: own(w, "internal.json", lambda x: x[2].update(self_rules=[], no_rule_reason="x")),
+       ["SD-003: the target breaks its own rule (IC-3)"])
+judged("finding mentions IC-3 but does not bind it", lambda r, w: own(w, "internal.json", lambda x: x[0].update(text=x[0]["text"] + "; see IC-3")),
+       ["IF-1: mentions IC-3"])
+judged("finding number missing on the own rule's row", lambda r, w: own(w, "self_results.json", lambda x: x["SD-001"].update(evidence="p9 QR-A.1 differs")),
+       ["IF-1: it concerns SD-001"])
+judged("own rule candidate not classified", lambda r, w: own(w, "self_sections.json", lambda x: x["candidates"][1].update({"class": ""})), ["candidate not classified"])
+judged("own rule copied into the reference register", lambda r, w: own(w, "rules.json", lambda x: x["rules"][3]["source"].update(doc="target_ui.pdf", quote="IC-2 Every screen shows the same fee")),
+       ["R-004: IC-2 is the target's own rule"])
+judged("own rule ❌ with fix «no change»", lambda r, w: own(w, "self_results.json", lambda x: x["SD-001"].update(fix="no change")), ["SD-001: ❌ with fix"])
+judged("own rule result changed after the self-audit", lambda r, w: own(w, "self_results.json", lambda x: x["SD-001"].update(severity="high")),
+       ["SD-001 changed after it was re-checked"], audit=False)
+with tempfile.TemporaryDirectory() as t:
+    f = Path(t) / "t.txt"
+    f.write_text("p1:L1\t1. Kısıtlar\np1:L2\tHer kayıt tek bir sahibe bağlıdır.\np2:L1\t2. Data\np2:L2\t| BR-1 | one owner |\np2:L3\tC-1 no empty names\n"
+                 "p2:L4\tAB-1 first\np2:L5\tAB-2 second\np3:L1\t3. Tutarlılık kuralları\np3:L2\tIC-1 a\np3:L3\tIC-3 b\n", encoding="utf-8")
+    got = {c["title"]: c["ids"] for c in self_rules.scan(f)}
+line("own rule detection: TR headings, BR- in a table, C- lines; a two-member unknown prefix is not a list",
+     got, {"Kısıtlar": [], "Tutarlılık kuralları": ["IC-1", "IC-3"], "ID list BR-": ["BR-1"], "ID list C-": ["C-1"]})
+
+# ---------- extracted text must be there ----------
+def extracted(name, mutate, expect_ok, text=""):
+    with tempfile.TemporaryDirectory() as t:
+        w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True); mutate(w)
+        r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+        line(f"extracted text, {name}", (r.returncode == 0, text in r.stdout), (expect_ok, True))
+
+
+extracted("directory missing: rejected", lambda w: shutil.rmtree(w / "ex"), False, "no extracted text in ex")
+extracted("directory empty: rejected", lambda w: [p.unlink() for p in (w / "ex").iterdir()] and None, False, "no extracted text in ex")
+def move(w):
+    shutil.move(w / "ex", w / "elsewhere"); run("prefixes.py", "elsewhere/target_ui.txt", "elsewhere/ref_policy.txt", "-o", "prefixes.json", cwd=w)
+extracted("other directory recorded in progress.json: accepted", move, True)
+def stale(w):
+    move(w); shutil.move(w / "elsewhere", w / "gone")
+extracted("recorded directory gone: rejected", stale, False, "no extracted text in elsewhere")
 line("Turkish İ matches in the evidence-fit check", judgement.has_word("itiraz", "İtiraz süresi"), True)
 pats, _ = load_patterns()
 line("IDs: use-case exception steps and internal findings", sorted(judgement.ids_in("UC-3.7.EX.2 and UC-3.7.EX.1 vs S-4.1, IC-3. See UC-3.7.", pats)),

@@ -1,0 +1,24 @@
+{
+ "SD-001": {
+  "result": "❌",
+  "evidence": "p3 FR-1 and p6 UC-1.1 give one reminder period, p9 QR-A.1 another (IF-1)",
+  "issue": "Reminder period differs",
+  "fix": "Write the FR-1 period in QR-A.1"
+ },
+ "SD-002": {
+  "result": "❌",
+  "evidence": "p13 S-1.6 screen fee differs from the body and Appendix B (IF-2)",
+  "issue": "Screen fee differs",
+  "fix": "Make S-1.6 and the body show one fee (value: TBD-1)"
+ },
+ "SD-003": {
+  "result": "❌",
+  "evidence": "p11 S-1.4 screen deadline 22.03.2027, body 15.03.2027 (IF-3)",
+  "issue": "Screen date differs",
+  "fix": "Make S-1.4 and the body show one date"
+ },
+ "SD-004": {
+  "result": "✅",
+  "evidence": "p6 UC-1.1, the only use case, names screen S-1.3"
+ }
+}

@@ -1,0 +1,44 @@
+{
+ "rules": [
+  {
+   "id": "SD-001",
+   "doc_id": "IC-1",
+   "source": {
+    "doc": "target_ui.pdf",
+    "page": 8,
+    "section": "target_ui#4.1",
+    "quote": "The reminder period is the same in every requirement and use case"
+   }
+  },
+  {
+   "id": "SD-002",
+   "doc_id": "IC-2",
+   "source": {
+    "doc": "target_ui.pdf",
+    "page": 8,
+    "section": "target_ui#4.1",
+    "quote": "Every screen shows the same fee as the body text"
+   }
+  },
+  {
+   "id": "SD-003",
+   "doc_id": "IC-3",
+   "source": {
+    "doc": "target_ui.pdf",
+    "page": 8,
+    "section": "target_ui#4.1",
+    "quote": "Every screen shows the same dates as the body text"
+   }
+  },
+  {
+   "id": "SD-004",
+   "doc_id": "IC-4",
+   "source": {
+    "doc": "target_ui.pdf",
+    "page": 8,
+    "section": "target_ui#4.1",
+    "quote": "Every use case names a screen"
+   }
+  }
+ ]
+}

@@ -192,9 +192,16 @@ def cmd_verify(a):
     print(f"VERIFICATION OK: {len(got)}/{len(ids)} rules, one row each, result+evidence filled")
 
 
+def audit_inputs(a):
+    """Reference register + the target's own rules (self_rules.json / self_results.json next to it)."""
+    import judgement
+    mine, mine_res = judgement.self_register(Path(a.rules).parent)
+    return load_rules(a.rules) + mine, {**json.loads(Path(a.results).read_text(encoding="utf-8")), **mine_res}
+
+
 def cmd_audit_plan(a):
     import judgement
-    rules = load_rules(a.rules); res = json.loads(Path(a.results).read_text(encoding="utf-8"))
+    rules, res = audit_inputs(a)
     out = Path(a.out or Path(a.results).parent / "self_audit.json")
     old = json.loads(out.read_text(encoding="utf-8")) if out.exists() else None
     if old and "seed" not in old:
@@ -220,7 +227,7 @@ def cmd_audit_plan(a):
 
 def cmd_audit_record(a):
     import judgement
-    rules = load_rules(a.rules); res = json.loads(Path(a.results).read_text(encoding="utf-8"))
+    rules, res = audit_inputs(a)
     audit = json.loads(Path(a.audit).read_text(encoding="utf-8")); part = json.loads(Path(a.part).read_text(encoding="utf-8"))
     bad, done = [], []
     for rid, c in part.items():

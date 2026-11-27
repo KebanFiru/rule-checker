@@ -95,7 +95,11 @@ story += page(head("2. Requirements"), para("FR-1 The system shall send a remind
 story += scr("S-1.1") + scr("S-1.2")
 story += page(head("3. Use cases"), para("UC-1.1 Remind student. The reminder is sent 5 days after the application was submitted (S-1.3)."), para(FILLER))
 story += scr("S-1.3")
-story += page(head("4. Notifications"), para(FILLER), para(FILLER))
+story += page(head("4. Notifications"), para(FILLER), head("4.1 Consistency rules"),
+              para("IC-1 The reminder period is the same in every requirement and use case."),
+              para("IC-2 Every screen shows the same fee as the body text."),
+              para("IC-3 Every screen shows the same dates as the body text."),
+              para("IC-4 Every use case names a screen."))
 story += page(head("5. Quality requirements"), para("QR-A.1 The system shall send the reminder to the student after 7 days without an answer."), para(FILLER))
 story += page(head("6. Data"), para(FILLER), para("Figure 1 Data model of the portal"), DataModel())
 story += scr("S-1.4") + scr("S-1.5") + scr("S-1.6")

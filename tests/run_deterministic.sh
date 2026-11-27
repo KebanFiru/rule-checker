@@ -68,6 +68,11 @@ sc prefixes.py s3/ex/target_ui.txt s3/ex/ref_policy.txt -o s3/prefixes.json | he
 sc section_inventory.py identity --target s3/ex/target_ui.txt --files "$C/ref_policy.pdf" --names "Ek B" -o s3/doc_identity.json | head -1
 sc section_inventory.py scan s3/ex/ref_policy.txt "s3/ex/target_ui.txt@Appendix B" -o s3/ref_sections.json | tail -1
 sc section_inventory.py classify s3/ref_sections.json "$S3/classes.json"
+sc self_rules.py scan s3/ex/target_ui.txt -o s3/self_sections.json | tail -1
+sc self_rules.py classify s3/self_sections.json "$S3/self_classes.json"
+cp "$S3/self_rules.json" s3/
+sc search.py s3/ex/target_ui.txt --rules s3/self_rules.json --all-blocks
+sc matrix.py set-bulk s3/self_results.json "$S3/self_part.json"
 sc visual_inventory.py scan "$C/target_ui.pdf" -o s3/visual_inventory.json | sed -n 1,2p
 sc visual_inventory.py record s3/visual_log.json "$S3/visual_part.json"
 sc param_check.py scan --target s3/ex/target_ui.txt --ref s3/ex/ref_policy.txt -o s3/params.json | head -1

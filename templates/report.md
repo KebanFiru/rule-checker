@@ -45,6 +45,13 @@ Visual coverage: X/Y pages (skipped and open pages listed)
 
 ## Judgement warnings (check each one)
 
+## Target's own rules (self-declared)
+| Candidate | Kind | Declared IDs | Class | Reason |
+|---|---|---|---|---|
+
+| Own rule | Declared as | Result | Evidence | Issue | Suggested fix |
+|---|---|---|---|---|---|
+
 ## Violations
 | # | Rule | Source (document+page) | Target location (page+ID) | Issue | Suggested fix | Severity |
 |---|---|---|---|---|---|---|

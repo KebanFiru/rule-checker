@@ -28,7 +28,8 @@ a payment term the reference states twice (⚖️), an absent open-question fact
 references, the fix wordings that forbid ❌, unbound contradictions and the self-audit. R-003 and F-001 in `run3/` were reworded or
 reclassified (F-001 is now ⚖️) to satisfy the new verdict rules. Test runs pass a fixed `--seed` so that outputs are comparable
 across environments (the report marks it as supplied by hand); real runs generate one. Own-prefix collisions are tested on temporary
-copies of the extracted text. `audit_part.json` in `run/` and `run3/` are model-written notes. Regenerate fixtures with
+copies of the extracted text. The target's own rules (IC-1…IC-4 on page 8, judged in `self_*.json`) and the extracted-text
+check are covered the same way. `audit_part.json` in `run/` and `run3/` are model-written notes. Regenerate fixtures with
 `RULE_CHECK_TARGET=test ../dev/run.sh python /skill/tests/make_fixtures_coverage.py fixtures/coverage`. The visual findings,
 classifications and results in `run3/` are model judgements by the session that wrote the key (contaminated); no blind run yet.
 
