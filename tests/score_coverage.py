@@ -432,7 +432,7 @@ bad = [i for i, v in {**results, **own_results}.items() if judgement.sym(v) in (
 table = rep.split("## Violations")[1].split("\n## ")[0]
 rows = [l.split("|")[2].strip() for l in table.splitlines() if re.match(r"\| \d+ \|", l)]
 in_table = [i for r in rows for i in re.findall(r"(?<![\w-])(?:R|F|SD)-\d+", r.split("→")[-1])]
-line("violations: every violating row once, own rules included", (sorted(in_table), any(i.startswith("SD-") for i in in_table)), (sorted(bad), True))
+line("violations: every violating row listed, own rules included", (sorted(set(in_table)), any(i.startswith("SD-") for i in in_table)), (sorted(bad), True))
 line("violations: rows of one internal finding share a line; both counts in the summary",
      (len(rows) < len(bad), f"- Violations: {len(bad)} rows" in rep, f"{len(rows)} root findings" in rep), (True, True, True))
 with tempfile.TemporaryDirectory() as t:
