@@ -11,4 +11,6 @@ Constraints, invariants and consistency rules the TARGET declares itself (e.g. `
 4. Check the WHOLE target against each one (`search.py work/ex/target.txt --rules work/self_rules.json --all-blocks`), then record: `matrix.py set-bulk work/self_results.json work/self_part_01.json` (same result symbols and verdict rules).
 5. Every violation (❌/⚠️) becomes an `IF-n` finding in `work/internal.json` with `"self_rules": ["SD-003"]`; the row mentions the `IF-n`. If the same topic also falls under a reference rule, list it in `"rules"` too and write the finding on that row as well.
 
+The scan is mandatory, also when you expect none (zero candidates is a result); the only alternative is `progress.py step work/progress.json self-rules skipped --reason "…"`.
+
 `verify` fails on: an unclassified candidate; a declared ID without a row; an ID that does not occur in the target; a row without result; a violation without a finding; a finding that mentions a declared ID but does not list its row.

@@ -274,6 +274,25 @@ def self_register(work):
     return (data["rules"] if isinstance(data, dict) else data) or [], res or {}
 
 
+# ---------- mandatory steps ----------
+MANDATORY = ("reference", "visual", "self-rules", "self-audit")          # step names for progress.py
+
+
+def skip_reason(state, step):
+    """The recorded reason if the step was deliberately skipped, else '' (a skip without a reason does not count)."""
+    v = (state.get("steps") or {}).get(step) or {}
+    return str(v.get("reason", "")).strip() if v.get("state") == "skipped" else ""
+
+
+def missing_step(state, step, label, command):
+    """A mandatory step that left no result: (summary line, skipped entry, error or None)."""
+    why = skip_reason(state, step)
+    if why:
+        return f"- {label}: SKIPPED ({why})", (label.lower(), why, 1), None
+    return (f"- {label}: NOT RUN ({command})", (label.lower(), "step not run", 1),
+            f"{label} not run: run {command}, or record why not: progress.py step work/progress.json {step} skipped --reason \"…\"")
+
+
 # ---------- everything, for gates.collect ----------
 def collect(work, rules, res, patterns_file=None, report_text=None):
     """{summary, sections, required, errors, skipped}"""
@@ -320,7 +339,9 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
     # ---------- the target's own rules ----------
     declared = read(work, "self_sections.json")
     if declared is None:
-        out["summary"].append("- Target's own rules: NOT RUN (self_rules.py scan)"); out["skipped"].append(("target's own rules", "step not run", 1))
+        line, entry, error = missing_step(read(work, "progress.json") or {}, "self-rules", "Target's own rules", "self_rules.py scan")
+        out["summary"].append(line); out["skipped"].append(entry)
+        if error: out["errors"].append(error)
         if mine: out["errors"].append("self_rules.json exists but self_rules.py scan was not run (self_sections.json)")
     else:
         target = next((f for f in files if Path(f).stem == declared["doc"]), None)
@@ -372,19 +393,18 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
 
     audit = read(work, "self_audit.json")
     state = read(work, "progress.json") or {}
-    skip = state.get("steps", {}).get("self-audit", {}).get("state") == "skipped"
+    skip = bool(skip_reason(state, "self-audit"))
     if audit is not None and not skip:
         if not audit.get("seed") or audit.get("seed") != state.get("audit_seed"):
             out["errors"].append("self-audit seed does not match progress.json: the selection must come from the seed created when the step started")
             audit = {**audit, "seed": audit.get("seed") or ""}
-    if audit is None:
-        out["summary"].append("- Self-audit: NOT RUN (matrix.py audit-plan / audit-record)")
-        if not skip:
-            out["errors"].append("self-audit not run: matrix.py audit-plan, re-check the rows, audit-record (or record the step as skipped with a reason)")
-            out["skipped"].append(("self-audit", "step not run", 1))
+    if audit is None or skip:
+        line, entry, error = missing_step(state, "self-audit", "Self-audit", "matrix.py audit-plan / audit-record")
+        out["summary"].append(line); out["skipped"].append(entry)
+        if error: out["errors"].append(error)
     else:
         errs, need, done, changed = check_audit(rules + mine, {**res, **mine_res}, audit)
-        if not skip: out["errors"] += errs
+        out["errors"] += errs
         line = f"- Self-audit: re-checked {len(done)}/{len(need)} planned rows (all ❌/⚠️/{DECISION} and a random 10% of ✅; seed {audit['seed']}, {audit.get('seed_source', '?')}); changed: {len(changed)}"
         out["summary"].append(line)
         block = ["## Changed in self-audit (öz-denetimde değişti)", *(changed or ["- (no verdict changed)"])]

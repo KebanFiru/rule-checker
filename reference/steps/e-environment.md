@@ -10,7 +10,7 @@ S=<skill-dir>/scripts
 Optional pieces degrade gracefully (step E reports what is missing): PyYAML (process model), pypdf and/or poppler's `pdftotext` (PDF text), pdfplumber (cell-level tables), LibreOffice (DOCX visual pass). Never `pip install` anything on the host or in the sandbox, and use `python3`, never `python`. (Developers of this repository run everything in Docker through `dev/run.sh`; that is not needed to use the skill.)
 
 ## Resuming and `work/progress.json`
-`matrix.py set-bulk`, `visual_inventory.py record`, `section_inventory.py classify` and `param_check.py verdict` record their checkpoints in `work/progress.json`. Record the other steps yourself: `progress.py step work/progress.json <step> done`. A step you deliberately do not do: `… <step> skipped --reason "…"` (counted in the report). After a context summary or in a new session run `progress.py show work/progress.json` and `matrix.py status` FIRST, then continue where they stop.
+`matrix.py set-bulk`, `visual_inventory.py record`, `section_inventory.py classify` and `param_check.py verdict` record their checkpoints in `work/progress.json`. Record the other steps yourself: `progress.py step work/progress.json <step> done`. A step you deliberately do not do: `… <step> skipped --reason "…"` (counted in the report). Four steps are mandatory: `reference` (`section_inventory.py scan`), `visual` (`visual_inventory.py scan`), `self-rules` (`self_rules.py scan`) and `self-audit`; without their result `verify` fails unless that exact step name is recorded as skipped with a reason. After a context summary or in a new session run `progress.py show work/progress.json` and `matrix.py status` FIRST, then continue where they stop.
 
 ## The check (always first, one command)
 ```bash

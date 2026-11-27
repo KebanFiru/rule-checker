@@ -103,18 +103,6 @@ proc = REPO / "tests/fixtures/process"
 params, _ = param_check.model_parameters(proc / "model_v1/process_model.yaml", param_check.load_concepts(None))
 occ = [{"role": "target", "doc": "v2", "loc": "x", "value": v, "unit": "day", "dimension": "time", "concept": "reminder"} for v in ("5", "3")]
 line("parameter: compared with the process model", [c["kinds"] for c in param_check.conflicts(occ, params)], [["target-internal", "target-vs-model"]])
-with tempfile.TemporaryDirectory() as t:                      # no new step run at all: allowed, but visible and counted
-    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
-    for n in ("visual_inventory.json", "ref_sections.json", "params.json", "doc_identity.json"):
-        (w / n).unlink()
-    run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
-    body = (w / "coverage.md").read_text(encoding="utf-8"); top = body.split("## Summary")[0]
-    (w / "report.md").write_text("# R\n\n" + body, encoding="utf-8")
-    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
-    line("no gate run: NOT RUN lines shown and counted", (top.count(": NOT RUN"), "- Skipped checks: 4" in top, r.returncode), (4, True, 0))
-    (w / "report.md").write_text("# R\n\n## Summary" + body.split("## Summary", 1)[1], encoding="utf-8")
-    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
-    line("no gate run, summary removed: rejected", (r.returncode != 0, "must START" in r.stdout), (True, True))
 # ---------- judgement checks (aggregate findings, evidence fit, references, verdict types, internal findings, self-audit) ----------
 line("baseline: no judgement warning on the sample", "- Judgement warnings: 0 " in rep, True)
 line("self-audit: changed verdict listed in the report", "- R-001: ❌ → ⚠️" in rep.split("## Changed in self-audit")[1].split("\n## ")[0], True)
@@ -174,9 +162,58 @@ judged("real parameter contradiction not bound", lambda r, w: rewrite(w, "intern
 judged("unbound candidate rule is warned", lambda r, w: rewrite(w, "internal.json", lambda x: x[1].update(text=x[1]["text"] + "; the confirmation fee appears before payment")),
        ["IF-2: may also concern R-002"], rejected=False)
 judged("result changed after the self-audit", lambda r, w: r["R-005"].update(severity="high"), ["R-005 changed after it was re-checked"], audit=False)
-judged("self-audit left out", lambda r, w: (w / "self_audit.json").unlink(), ["self-audit not run"], audit=False)
+judged("self-audit left out", lambda r, w: (w / "self_audit.json").unlink(), ["Self-audit not run"], audit=False)
 judged("new violation not re-checked", lambda r, w: r["R-004"].update(result="⚠️"), ["R-004 not re-checked"], audit=False)
 rules3 = J("rules.json")["rules"]
+# ---------- mandatory steps ----------
+GATES = {"reference": ("Reference coverage", ["ref_sections.json"]), "visual": ("Visual coverage", ["visual_inventory.json", "visual_log.json"]),
+         "self-rules": ("Target's own rules", ["self_sections.json", "self_rules.json", "self_results.json"])}
+
+
+def without(w, steps):
+    for step in steps:
+        for n in GATES[step][1]:
+            (w / n).unlink()
+    if "self-rules" in steps:
+        rewrite(w, "internal.json", lambda x: [f.pop("self_rules", None) and f.setdefault("no_rule_reason", "test") for f in x] and None)
+
+
+def gate_run(steps, skips=(), also_delete=(), extra=None):
+    """(verify exit code, verify output, report top)."""
+    with tempfile.TemporaryDirectory() as t:
+        w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+        without(w, steps)
+        for n in also_delete: (w / n).unlink()
+        for step, why in skips:
+            run("progress.py", "step", "progress.json", step, "skipped", "--reason", why, cwd=w)
+        if extra: extra(w)
+        if "self-rules" in steps:      # the register changed: audit again so only the gate is tested
+            (w / "self_audit.json").unlink(missing_ok=True) if "self-audit" not in dict(skips) else None
+            if "self-audit" not in dict(skips): reaudit(w)
+        run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
+        body = (w / "coverage.md").read_text(encoding="utf-8")
+        (w / "report.md").write_text("# R\n\n" + body, encoding="utf-8")
+        r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+        return r.returncode, r.stdout, body.split("## Summary")[0]
+
+
+for step, (label, _) in GATES.items():
+    code, out, top = gate_run([step])
+    line(f"mandatory {step}: not run is rejected", (code != 0, f"{label} not run" in out, f"- {label}: NOT RUN" in top), (True, True, True))
+    code, out, top = gate_run([step], skips=[(step, "no input for it")])
+    line(f"mandatory {step}: skipped with a reason passes, shown and counted once",
+         (code, f"- {label}: SKIPPED (no input for it)" in top, "- Skipped checks: 1" in top, top.count("no input for it")), (0, True, True, 2))
+code, out, top = gate_run([], skips=[], also_delete=["self_audit.json"], extra=lambda w: run("progress.py", "step", "progress.json", "self-audit", "skipped", "--reason", "no time", cwd=w))
+line("mandatory self-audit: skipped with a reason passes, counted once", (code, "- Self-audit: SKIPPED (no time)" in top, "- Skipped checks: 1" in top), (0, True, True))
+code, out, top = gate_run(["visual"], extra=lambda w: rewrite(w, "progress.json", lambda x: x["steps"].update(visual={"state": "skipped", "reason": " "})))
+line("mandatory: a skip without a reason is rejected", (code != 0, "Visual coverage not run" in out), (True, True))
+code, out, top = gate_run(list(GATES), skips=[(k, f"why {k}") for k in GATES], also_delete=["params.json", "doc_identity.json"])
+line("all three skipped with reasons; optional steps shown as NOT RUN and counted", (code, top.count(": SKIPPED ("), top.count(": NOT RUN"), "- Skipped checks: 5" in top), (0, 3, 2, True))
+with tempfile.TemporaryDirectory() as t:                      # the summary itself stays mandatory
+    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+    p = w / "report.md"; p.write_text("# R\n\n## Summary" + p.read_text(encoding="utf-8").split("## Summary", 1)[1], encoding="utf-8")
+    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("summary removed: rejected", (r.returncode != 0, "must START" in r.stdout), (True, True))
 # ---------- seeded self-audit ----------
 many = [f"R-{i:03d}" for i in range(1, 101)]
 line("self-audit sample: 10%, reproducible with the seed, different for another seed",

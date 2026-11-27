@@ -1,6 +1,8 @@
 """Coverage gates used by matrix.py: every count in the report is computed HERE from the files in the work folder, and verify
 recomputes it. A step counts as run when its file exists; files are discovered in the work folder (the folder of rules.json), so a
 check cannot be left out by forgetting a flag.
+Reference coverage, the visual inventory, the self-rule scan and the self-audit are MANDATORY: without their file, verify fails unless
+progress.json records the step as skipped with a reason (shown and counted at the top of the report).
 
   visual_inventory.json + visual_log.json     visual coverage
   ref_sections.json                           reference coverage
@@ -32,6 +34,13 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
     own = judgement.Own(prefixes.load(work)[0])
     facts = [r for r in rules if own.is_fact(r)]
     summary.append(f"- Rules: {len(rules) - len(facts)}; facts: {len(facts)}")
+    state = progress.load(Path(work) / "progress.json")
+
+    def missing_gate(step, label, command):
+        line, entry, error = judgement.missing_step(state, step, label, command)
+        summary.append(line); skipped.append(entry)
+        if error:
+            errors.append(error)
 
     ident = read(work, "doc_identity.json")
     assumed = set()
@@ -64,7 +73,7 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
             required += [f"- {w}" for w in warns]
         sections.append("")
     else:
-        summary.append("- Reference coverage: NOT RUN (section_inventory.py scan)"); skipped.append(("reference coverage", "step not run", 1))
+        missing_gate("reference", "Reference coverage", "section_inventory.py scan")
 
     inv = read(work, "visual_inventory.json")
     if inv:
@@ -98,7 +107,7 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
         sections.append("")
         required += [line] + ([f"{n} ({r})" for n, r in skip])
     else:
-        summary.append("- Visual coverage: NOT RUN (visual_inventory.py scan)"); skipped.append(("visual coverage", "step not run", 1))
+        missing_gate("visual", "Visual coverage", "visual_inventory.py scan")
 
     params = read(work, "params.json")
     if params:
@@ -120,8 +129,9 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
     env = json.loads(Path(env_path).read_text(encoding="utf-8")) if env_path else read(work, "env.json")
     if env:
         skipped += [("environment", u, 1) for u in env.get("unavailable_checks", [])]
-    prog = progress.load(Path(work) / "progress.json")
-    skipped += [(f"step {k}", v["reason"], 1) for k, v in prog["steps"].items() if v["state"] == "skipped"]
+    listed = {k for k, label in (("reference", "ref_sections.json"), ("visual", "visual_inventory.json"), ("self-rules", "self_sections.json"))
+              if not (Path(work) / label).exists()} | {"self-audit"}          # a missing mandatory step is already counted above
+    skipped += [(f"step {k}", v["reason"], 1) for k, v in state["steps"].items() if v["state"] == "skipped" and k not in listed]
     summary.append(f"- Skipped checks: {sum(n for *_, n in skipped)}")
     summary += [f"  - {what}: {reason} ({n})" for what, reason, n in skipped]
     summary += judged["summary"]

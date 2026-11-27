@@ -16,6 +16,9 @@ python3 "$REPO/tests/build_rules.py" s1/ex/rules.txt s1/rules.json rules.pdf
 sc id_index.py s1/ex/target_srs.txt -o s1/id_index.json
 sc xref_check.py s1/ex/target_srs.txt --numbers --also-numbers s1/ex/rules.txt -o s1/xref_report.md >/dev/null
 sc prefixes.py s1/ex/target_srs.txt s1/ex/rules.txt -o s1/prefixes.json | head -1
+for st in reference visual self-rules; do
+  sc progress.py step s1/progress.json $st skipped --reason "scenario 1 tests the rule matrix; this gate is tested in scenario 1c" | tail -1
+done
 sc matrix.py skeleton s1/rules.json s1/ex/target_srs.txt -o s1/matrix
 cp "$S1/part_01.json" "$S1/part_02.json" "$S1/internal.md" "$S1/per_person.md" s1/
 sc matrix.py set-bulk s1/results.json s1/part_01.json >/dev/null
