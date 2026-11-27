@@ -10,4 +10,4 @@
 `matrix.py audit-record work/rules.json work/results.json work/self_audit.json work/audit_part.json`
 5. Run `audit-plan` again: rows that became findings are added. Any row edited after its check must be recorded again.
 
-The report lists changed verdicts under "Changed in self-audit". `verify` fails while a planned row is unchecked or stale. Only if the step truly cannot be done: `progress.py step work/progress.json self-audit skipped --reason "…"` (counted in the report). Do not record a row you did not re-read.
+The report lists changed verdicts under "Changed in self-audit". `verify` fails while a planned row is unchecked or stale. Only if the step truly cannot be done, and only before `audit-plan` (a planned audit must be finished): `progress.py step work/progress.json self-audit skipped --reason "…"` (counted in the report). Do not record a row you did not re-read.

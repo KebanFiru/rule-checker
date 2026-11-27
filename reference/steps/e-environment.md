@@ -17,3 +17,5 @@ Optional pieces degrade gracefully (step E reports what is missing): PyYAML (pro
 python3 $S/env_check.py --json work/env.json
 ```
 It reports the Python, pypdf, pdfplumber, PyYAML, `pdftotext` and LibreOffice (`soffice`) versions and lists the checks that CANNOT be done here (no second PDF engine, no cell-level tables, no DOCX visual pass, no process model). Tell the user up front which checks will be skipped, and pass `--env work/env.json` to `matrix.py coverage` so the report's "Environment" section states it.
+
+**A skip is rejected while an output needs the step** (`verify` lists the waiting items): `internal` while an `SD-` row is ❌/⚠️, a parameter conflict inside the target is judged `real`, or a row cites `IF-n`; `visual` while the inventory has pages (skip single pages with `skipped_reason`); `reference` while rules cite sections; `params` while a finding binds a conflict; `identity` while a rule comes from the target itself; `self-rules` while own rows or bindings exist; `self-audit` once it was planned. A step with its own results cannot be recorded as skipped: finish it and record `done`.

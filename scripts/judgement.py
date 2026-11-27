@@ -293,6 +293,50 @@ def missing_step(state, step, label, command):
             f"{label} not run: run {command}, or record why not: progress.py step work/progress.json {step} skipped --reason \"…\"")
 
 
+def skip_conflicts(work, rules, res, mine, mine_res, own):
+    """A recorded skip is rejected while any output needs the skipped step (its own, if it has content, or another step's)."""
+    state = read(work, "progress.json") or {}
+    findings, params, verdicts = read(work, "internal.json") or [], read(work, "params.json"), read(work, "param_verdicts.json") or {}
+    inv, ref, declared = read(work, "visual_inventory.json"), read(work, "ref_sections.json"), read(work, "self_sections.json")
+    ident, audit = read(work, "doc_identity.json"), read(work, "self_audit.json")
+    reference = [r for r in rules if own.kind(r) != "self"]
+    targets = {declared["doc"]} if declared else set()
+    targets |= {o["doc"] for o in (params or {}).get("occurrences", []) if o["role"] == "target"} | {d["doc"] for d in (inv or {}).get("documents", [])}
+    finding_ref = re.compile(rf"(?<![\w-]){re.escape(own.p['finding'])}-\d+")
+    need = {k: [] for k in MANDATORY}
+
+    # internal: broken own rules, real contradictions inside the target, rows that already cite a finding
+    for r in mine:
+        s = sym(mine_res.get(r["id"]))
+        if s in ("❌", "⚠️"): need["internal"].append(f"{r['id']} {s} (own rule {r.get('doc_id') or (r.get('source') or {}).get('section')})")
+    for c in (params or {}).get("conflicts", []):
+        if "target-internal" in c["kinds"] and (verdicts.get(c["id"]) or {}).get("verdict") == "real":
+            need["internal"].append(f"{c['id']} (parameter conflict inside the target, judged real)")
+    for rid, v in {**res, **mine_res}.items():
+        cited = sorted(set(finding_ref.findall(text_of(v))))
+        if cited: need["internal"].append(f"{rid} cites {', '.join(cited)}")
+    need["internal"] += [f"{f.get('id')} (already written in internal.json)" for f in findings]
+
+    need["visual"] = [f"{p['doc']} p{p['page']} (in the visual inventory)" for p in (inv or {}).get("pages", [])]
+    need["reference"] = [f"{s['id']} (in the section inventory)" for s in (ref or {}).get("sections", [])] \
+        + [f"{r['id']} (comes from section {r['source']['section']})" for r in reference if (r.get("source") or {}).get("section")]
+    need["params"] = [f"{c['id']} (conflict in params.json)" for c in (params or {}).get("conflicts", [])] \
+        + [f"{k} (has a verdict)" for k in verdicts if not params] + [f"{f.get('id')} (binds {f['param']})" for f in findings if f.get("param")]
+    need["identity"] = [f"«{e['name']}» (in doc_identity.json)" for e in (ident or {}).get("documents", [])] \
+        + [f"{r['id']} (its source is the target itself)" for r in reference if Path(str((r.get("source") or {}).get("doc", ""))).stem in targets]
+    need["self-rules"] = [f"{c['id']} (candidate in self_sections.json)" for c in (declared or {}).get("candidates", [])] \
+        + [f"{r['id']} (row in self_rules.json)" for r in mine] + [f"{i} (result in self_results.json)" for i in mine_res if i not in {r['id'] for r in mine}] \
+        + [f"{f.get('id')} (binds {', '.join(f['self_rules'])})" for f in findings if f.get("self_rules")]
+    need["self-audit"] = [f"{i} (planned in self_audit.json)" for i in (audit or {}).get("planned", [])]
+
+    errors = []
+    for step, waiting in need.items():
+        if waiting and skip_reason(state, step):
+            errors.append(f"the skip of step «{step}» is rejected, {len(waiting)} item(s) need it: " + "; ".join(waiting)
+                          + f". Do the step, then: progress.py step work/progress.json {step} done")
+    return errors
+
+
 # ---------- everything, for gates.collect ----------
 def collect(work, rules, res, patterns_file=None, report_text=None):
     """{summary, sections, required, errors, skipped}"""
@@ -335,6 +379,8 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
     texts += [(f"internal finding {f.get('id')}", str(f.get("text", ""))) for f in findings or []]
     if report_text: texts.append(("the report", report_text))
     out["errors"] += check_references(rules + mine, texts, tbd, own)
+
+    out["errors"] += skip_conflicts(work, rules, res, mine, mine_res, own)
 
     # ---------- the target's own rules ----------
     declared = read(work, "self_sections.json")

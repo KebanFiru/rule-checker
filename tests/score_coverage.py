@@ -180,18 +180,39 @@ def without(w, steps):
         rewrite(w, "internal.json", lambda x: [f.pop("self_rules", None) and f.setdefault("no_rule_reason", "test") for f in x] and None)
 
 
-def gate_run(steps, skips=(), also_delete=(), extra=None):
-    """(verify exit code, verify output, report top)."""
+def detach(w, steps):
+    """Remove everything that would still NEED the missing steps, so that a skip of them is legitimate."""
+    if "reference" in steps:
+        rewrite(w, "rules.json", lambda x: [r["source"].pop("section", None) for r in x["rules"]] and None)
+    if "identity" in steps:
+        rewrite(w, "rules.json", lambda x: [r["source"].update(doc="other.pdf") for r in x["rules"] if r["source"]["doc"] == "target_ui.pdf"] and None)
+    if "params" in steps and (w / "internal.json").exists():
+        rewrite(w, "internal.json", lambda x: [f.pop("param", None) for f in x] and None)
+    if "internal" in steps:
+        clean = lambda x: [v.update({k: re.sub(r" ?\(?IF-\d+\)?", "", t) for k, t in v.items() if isinstance(t, str)}) for v in x.values()] and None
+        rewrite(w, "results.json", clean)
+        if (w / "self_results.json").exists():
+            rewrite(w, "self_results.json", clean)
+            rewrite(w, "self_results.json", lambda x: [v.update(result="✅") for v in x.values()] and None)
+        if (w / "param_verdicts.json").exists():
+            rewrite(w, "param_verdicts.json", lambda x: [v.update(verdict="legitimate-difference") for v in x.values()] and None)
+
+
+def gate_run(steps, skips=(), also_delete=(), extra=None, dependencies=False):
+    """(verify exit code, verify output, report top). dependencies=True keeps the other steps' outputs that need the missing ones."""
     with tempfile.TemporaryDirectory() as t:
         w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
-        without(w, steps)
+        if dependencies:
+            for step in steps:
+                for n in GATES[step][1]: (w / n).unlink()
+        else:
+            without(w, steps); detach(w, steps)
         for n in also_delete: (w / n).unlink()
         for step, why in skips:
             run("progress.py", "step", "progress.json", step, "skipped", "--reason", why, cwd=w)
         if extra: extra(w)
-        if "self-rules" in steps:      # the register changed: audit again so only the gate is tested
-            (w / "self_audit.json").unlink(missing_ok=True) if "self-audit" not in dict(skips) else None
-            if "self-audit" not in dict(skips): reaudit(w)
+        if not dependencies and steps and "self-audit" not in dict(skips):          # rows changed: audit again
+            (w / "self_audit.json").unlink(); reaudit(w)
         run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
         body = (w / "coverage.md").read_text(encoding="utf-8")
         (w / "report.md").write_text("# R\n\n" + body, encoding="utf-8")
@@ -216,6 +237,54 @@ code, out, top = gate_run(list(GATES))
 line("all six missing without a reason: each one rejected", sum(f"{label} not run" in out for label, _ in GATES.values()), 6)
 code, out, top = gate_run([], extra=lambda w: (w / "internal.json").write_text("[]", encoding="utf-8"))
 line("empty internal findings list counts as run (own-rule violations still need a finding)", ("Internal findings not run" in out, "SD-001: the target breaks its own rule" in out), (False, True))
+
+
+# ---------- a skip is rejected while some output needs the step ----------
+def rejection(out, step):
+    return next((l for l in out.splitlines() if f"the skip of step «{step}» is rejected" in l), "")
+
+
+def refused(name, step, expect, absent=(), steps=None, **kw):
+    code, out, _ = gate_run([step] if steps is None else steps, skips=[(step, "no time")], dependencies=True, **kw)
+    msg = rejection(out, step)
+    line(f"skip rejected, {name}", (code != 0, [x for x in expect if x not in msg], [x for x in absent if x in msg]), (True, [], []))
+    if not msg: print("  output was:", out[:500])
+
+
+refused("internal with broken own rules and a real inner conflict (all waiting rows listed)", "internal",
+        ["SD-001 ❌", "SD-002 ❌", "SD-003 ❌", "P:reminder:time", "R-001 cites IF-1"], absent=["SD-004", "P:fee:money", "P:payment:time"])
+
+
+def only_conflict(w):
+    rewrite(w, "self_results.json", lambda x: [v.update(result="✅", evidence="checked") for v in x.values()] and None)
+    rewrite(w, "results.json", lambda x: [v.update({k: re.sub(r" ?\(?IF-\d+\)?", "", t) for k, t in v.items() if isinstance(t, str)}) for v in x.values()] and None)
+
+
+refused("internal with only a real inner parameter conflict", "internal", ["1 item(s) need it", "P:reminder:time"], absent=["SD-0"], extra=only_conflict)
+
+
+def only_violation(w):
+    only_conflict(w)
+    rewrite(w, "param_verdicts.json", lambda x: x["P:reminder:time"].update(verdict="false-positive"))
+    rewrite(w, "self_results.json", lambda x: x["SD-002"].update(result="⚠️"))
+
+
+refused("internal with only one partly broken own rule", "internal", ["1 item(s) need it", "SD-002 ⚠️"], absent=["P:reminder"], extra=only_violation)
+refused("visual while the inventory has pages", "visual", ["8 item(s)", "target_ui p4", "target_ui p14"], steps=[])
+refused("reference while rules cite sections", "reference", ["R-001 (comes from section ref_policy#2)", "F-003"])
+refused("params while a finding binds a conflict", "params", ["IF-1 (binds P:reminder:time)"])
+refused("identity while rules come from the target", "identity", ["R-003 (its source is the target itself)", "R-004"], absent=["R-001"])
+refused("self-rules while own rows and findings exist", "self-rules", ["SD-001 (row in self_rules.json)", "IF-3 (binds SD-003)"],
+        steps=[], also_delete=["self_sections.json"])
+refused("self-audit after it was planned", "self-audit", ["R-001 (planned in self_audit.json)"], steps=[])
+
+
+def no_pages(w):
+    rewrite(w, "visual_inventory.json", lambda x: x.update(pages=[]))
+
+
+code, out, top = gate_run([], skips=[("visual", "nothing to look at")], extra=no_pages)
+line("skip accepted when no output needs the step (empty inventory)", (rejection(out, "visual"), code), ("", 0))
 with tempfile.TemporaryDirectory() as t:                      # the summary itself stays mandatory
     w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
     p = w / "report.md"; p.write_text("# R\n\n## Summary" + p.read_text(encoding="utf-8").split("## Summary", 1)[1], encoding="utf-8")
