@@ -13,7 +13,7 @@ from collections import deque
 from pathlib import Path
 import yaml
 sys.path.insert(0, str(Path(__file__).parent))
-from id_index import load_patterns, blocks_by_id
+from id_index import load_patterns, blocks_by_id, parse_lines
 
 SYMS = ("✅", "❌")
 
@@ -162,7 +162,7 @@ def mermaid(m):
 
 # ---------------- invariants ----------------
 def doc_blocks(txt, pats):
-    lines = [tuple(r.split("\t", 1)) for r in Path(txt).read_text(encoding="utf-8").splitlines() if "\t" in r]
+    lines = list(parse_lines(txt))
     return blocks_by_id(lines, pats)
 
 

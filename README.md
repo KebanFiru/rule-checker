@@ -91,7 +91,8 @@ All are standard-library Python; run them as `python3 scripts/<name>.py …` (se
 | `self_rules.py` | finds the rules the target declares itself (constraints, invariants, consistency rules); judged and reported separately |
 | `prefixes.py` | picks own ID prefixes that do not occur in the documents |
 | `judgement.py` | checks on the verdicts themselves, self-audit selection (used by `matrix.py`) |
-| `progress.py` | `work/progress.json`, to resume long runs |
+| `progress.py` | `work/progress.json`, to resume long runs; `start [--fresh]` notes (or sets aside) the results of earlier runs, so a blind test cannot reuse them unnoticed |
+| `tracked.py` | tracked changes visible in a PDF (strikeout annotations, lines through text; pdfplumber): `<stem>.current.txt` and `<stem>.changes.json` |
 | `model_check.py` | process-model validation, invariant checks (model and document), Mermaid output, version `bump` |
 | `doc_diff.py`, `impact.py` | section/ID-level diff between two versions (format noise separated); impact of changes on model nodes, parameters, rules and invariants |
 | `id_patterns.json` | configurable ID regexes and units (English and Turkish labels) |
@@ -112,6 +113,7 @@ The processes of a document (steps, actors, order, conditions, durations, except
 - Own-rule detection needs a recognisable heading or an ID list; rules stated in running text elsewhere are not found automatically.
 - The self-audit seed is guarded by `progress.json`; deleting both work files would allow a new draw. Prefix collisions are found in extracted text only, not inside images.
 - Visual inventory, section detection and parameter binding are heuristics: images need pypdf, headings must look like headings, and spelled-out numbers are recognised only up to twelve.
+- PDF tracked changes: only strikeout annotations and drawn lines through text count as deletions. Red or grey text without a line is reported, not removed; deleted text inside images or in documents without pdfplumber is not detected. "From scratch" moves earlier work files aside, but cannot prevent a model from opening them.
 - Heuristics (ID definition vs reference, number/unit concepts) can produce false positives; `SKILL.md` requires verifying each finding in the document.
 - Verified on synthetic documents only; check it on your own PDFs before relying on it (an extraction disagreement shows up as a warning).
 
@@ -130,7 +132,7 @@ Makefile    make test · make chat-env-test · make package
 | Command | What it does |
 |---|---|
 | `make test` | all scenarios end to end in the regular image (self-contained; works on a fresh clone) |
-| `make chat-env-test` | builds two replicas of a chat sandbox (`dev/docker/chat-env*.Dockerfile`; the newer one has pypdf 6.17, pdfplumber, poppler 24.02, LibreOffice and the sandbox's fonts), runs all scenarios with both PDF engines in each, and prints a classified comparison |
+| `make chat-env-test` | builds two replicas of a chat sandbox (`dev/docker/chat-env*.Dockerfile`; the newer one has pypdf 6.17, pdfplumber, poppler 24.02, LibreOffice and the sandbox's fonts), runs all scenarios with both PDF engines in each, and prints a classified comparison; also runs the PDF tracked-change detection test (needs pdfplumber) |
 | `make package` | builds `dist/rule-check.zip` (explicit include list; no tests, no `dev/`) |
 | `dev/run.sh <cmd>` | runs any command in the Docker image: no network, read-only root filesystem, dropped capabilities |
 

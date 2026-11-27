@@ -36,6 +36,13 @@ and `self-rules` as skipped. `audit_part.json` in `run/` and `run3/` are model-w
 `RULE_CHECK_TARGET=test ../dev/run.sh python /skill/tests/make_fixtures_coverage.py fixtures/coverage`. The visual findings,
 classifications and results in `run3/` are model judgements by the session that wrote the key (contaminated); no blind run yet.
 
+## 1d. Regressions from a real run
+`score_third_run.py` (part of every run): numbered dates/sentences are not headings, restarted numbering is an appendix, evidence-fit
+noise filters and the appended-sentence case (synthetic: the real run's files are not in the repository), root findings, earlier-run
+detection and `--fresh`, tracked-change gates and the no-pdfplumber message. `score_tracked.py` (`tracked_test.sh`, pdfplumber image
+`chat-env-v2`; run by `make chat-env-test`, not by `make test`) checks detection on `fixtures/tracked/tracked.pdf`
+(`make_fixtures_tracked.py OUTDIR`, test image) and on a LibreOffice export of `office.fodt`.
+
 ## 2. Process model / regression scenario (`run2/`, `fixtures/process/`)
 ```bash
 cd tests; R=../dev/run.sh

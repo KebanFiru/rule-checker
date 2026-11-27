@@ -54,6 +54,7 @@ def collect():
     if not have("pypdf"): unavailable.append("image and drawing detection for the visual inventory (pypdf missing): every page must be read for the visual pass")
     if not caps["process_model"]: unavailable.append("process model / invariants / impact analysis (PyYAML missing)")
     if not caps["pdf_tables_pdfplumber"]: unavailable.append("cell-level PDF table extraction (pdfplumber missing): tables come from the -layout text with ' | ' separated cells")
+    if not caps["pdf_tables_pdfplumber"]: unavailable.append("tracked-change detection in PDFs (pdfplumber missing): struck-through text is read as current text")
     if not caps["docx_visual_pass_libreoffice"]: unavailable.append("DOCX visual pass (LibreOffice missing): DOCX targets cannot be rendered; ask for a PDF export or skip the visual pass")
     return {"python": py, "platform": platform.platform(), "libraries": libs, "tools": tools, "capabilities": caps, "unavailable_checks": unavailable}
 

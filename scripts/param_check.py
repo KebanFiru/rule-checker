@@ -15,7 +15,7 @@ import argparse, json, re, sys
 from collections import defaultdict
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
-from id_index import parse_lines
+from id_index import parse_lines, doc_stem
 import progress
 
 VERDICTS = ("real", "false-positive", "legitimate-difference", "tbd")
@@ -155,7 +155,7 @@ def occurrences(files, role, concepts):
         for sent, marks in sentences(f):
             for s, e, value, unit, dim in find_values(sent):
                 loc = [l for o, l in marks if o <= s]
-                out.append({"role": role, "doc": Path(f).stem, "loc": loc[-1] if loc else (marks[0][1] if marks else "?"), "value": value,
+                out.append({"role": role, "doc": doc_stem(f), "loc": loc[-1] if loc else (marks[0][1] if marks else "?"), "value": value,
                             "unit": unit, "dimension": dim, "concept": bind(sent, s, e, concepts), "context": " ".join(sent.split())[:160]})
     return out
 

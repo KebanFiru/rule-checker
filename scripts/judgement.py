@@ -12,8 +12,9 @@ work/self_audit.json  written by matrix.py audit-plan / audit-record
 Hard failures stop verify. Warnings are heuristics: they are counted and listed in the report and must be looked at.
 """
 import hashlib, json, math, re, secrets
+from collections import Counter
 from pathlib import Path
-from id_index import load_patterns, norm_id
+from id_index import load_patterns, norm_id, parse_lines, doc_stem, current_path
 import prefixes
 import self_rules as self_rules_mod
 
@@ -85,6 +86,36 @@ def has_word(word, text):
     return re.search(r"(?<!\w)" + re.escape(fold(word)), fold(text)) is not None
 
 
+# ---------- meaningful keywords ----------
+WARNING_LIMIT = 30
+MONTH_WORDS = set(("january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept "
+                   "oct nov dec ocak şubat mart nisan mayıs haziran temmuz ağustos eylül ekim kasım aralık").split())
+NOT_A_WORD = re.compile(r"[\d\W_]*|\d+(?:st|nd|rd|th|[.:]?[a-zçğıöşü])?")          # numbers, dates, times, ordinals, "3a"
+WORD_RX = re.compile(r"[^\W\d_]{2,}")
+
+
+def common_words(files, rules, share=0.05):
+    """The most frequent 5% of the words of the run (documents and register): they say nothing about which row a sentence belongs to."""
+    count = Counter()
+    for f in dict.fromkeys(current_path(f) for f in files):             # a current.txt and its original are read once
+        for _, text in parse_lines(f):
+            count.update(WORD_RX.findall(fold(text)))
+    if not count:
+        for r in rules:
+            count.update(WORD_RX.findall(fold(rule_text(r))))
+    top = sorted(count.items(), key=lambda x: (-x[1], x[0]))[:int(len(count) * share)]
+    return {w for w, n in top if n >= 3}
+
+
+def meaningful(words, common=()):
+    """Keywords that can tell rows apart: no numbers, dates, month names, single letters or document-wide frequent words."""
+    out = []
+    for w in dict.fromkeys(fold(str(w)).strip() for w in words):
+        if len(w) > 1 and not NOT_A_WORD.fullmatch(w) and w not in MONTH_WORDS and w not in common:
+            out.append(w)
+    return out
+
+
 def refs_in(text, own=None):
     return {m.group(1) or m.group(0) for m in (own or Own()).row_ref.finditer(text)}
 
@@ -119,27 +150,70 @@ def check_aggregates(rules, res, sections, own):
 
 
 # ---------- 2) evidence fits the rule; references resolve ----------
-def check_evidence(rules, res, patterns, keywords, own):
-    """Warnings when a row's evidence looks like it belongs to another rule. Returns (warnings, checked, not_checkable)."""
+SENTENCES = re.compile(r"(?<=[.!?;])\s+(?=[\w«\"(])|\n+")
+
+
+def terms_of(rule, patterns, keywords, own, common):
+    """(document IDs of the rule, its meaningful keywords that are not just a piece of one of those IDs)."""
+    ids = ids_in(own.any.sub(" ", rule_text(rule)), patterns)          # own row/finding IDs are not document IDs
+    kws = keywords(rule)
+    ids |= {i for k in kws for i in ids_in(own.any.sub(" ", str(k).upper()), patterns)}
+    words = [w for w in meaningful(kws, common) if not own.any.fullmatch(w.upper()) and not any(w in i.lower() for i in ids)]
+    return ids, words
+
+
+def check_evidence(rules, res, patterns, keywords, own, common=()):
+    """Warnings when a row's evidence (or one sentence of it) looks like it belongs to another rule.
+    Returns ([(score, text)], checked, not_checkable)."""
     warnings, checked, blind = [], 0, 0
-    kw = {r["id"]: keywords(r) for r in rules}
+    terms = {r["id"]: terms_of(r, patterns, keywords, own, common) for r in rules}
+    every = {r["id"]: meaningful(keywords(r)) for r in rules}                # own side: frequent words still count as "this rule"
+    sources = {o: t for o, t in terms.items() if len(t[0]) + len(t[1]) >= 2}  # fewer than 2 terms: never a comparison source
+
+    def foreign(rid, text):
+        """Best other rule: (number of its terms in text that this rule does not have, rule id, the terms)."""
+        found = ids_in(own.any.sub(" ", text), patterns)
+        best = (0, "", [])
+        for o in sorted(sources):
+            if o == rid:
+                continue
+            ids, words = sources[o]
+            hits = sorted(found & (ids - terms[rid][0])) + [w for w in words if w not in every[rid] and has_word(w, text)]
+            if len(hits) > best[0]:
+                best = (len(hits), o, hits)
+        return best
+
+    def mentions_own(rid, text):
+        return bool(ids_in(own.any.sub(" ", text), patterns) & terms[rid][0]) or any(has_word(w, text) for w in every[rid])
+
     for r in rules:
         rid = r["id"]; v = res.get(rid)
         if not v:
             continue
+        mine = terms[rid][0]
         ev = f"{v.get('evidence', '')} {v.get('target_loc', '')}"
-        mine = ids_in(own.any.sub(" ", rule_text(r)), patterns)          # own row/finding IDs are not document IDs
         theirs = ids_in(own.any.sub(" ", ev), patterns)
-        if not kw[rid] and not (mine and theirs):
+        if not every[rid] and not (mine and theirs):
             blind += 1; continue
         checked += 1
         if mine and theirs and not mine & theirs:
-            warnings.append(f"{rid}: evidence IDs ({', '.join(sorted(theirs))}) do not overlap the rule's IDs ({', '.join(sorted(mine))})")
-        low = f"{ev} {v.get('issue', '')}".lower()
-        if kw[rid] and not any(has_word(w, low) for w in kw[rid]):
-            scores = sorted(((sum(has_word(w, low) for w in set(kw[o]) - set(kw[rid])), o) for o in kw if o != rid), key=lambda x: (-x[0], x[1]))
-            if scores and scores[0][0] >= 2:
-                warnings.append(f"{rid}: evidence uses none of the rule's keywords but {scores[0][0]} of {scores[0][1]}'s: is it written on the wrong row?")
+            warnings.append((len(theirs) + 1, f"{rid}: evidence IDs ({', '.join(sorted(theirs))}) do not overlap the rule's IDs ({', '.join(sorted(mine))})"))
+        if not every[rid] and not mine:
+            continue
+        whole = f"{ev} {v.get('issue', '')}"
+        if not mentions_own(rid, whole):
+            n, o, hits = foreign(rid, whole)
+            if n >= 2:
+                warnings.append((n + 10, f"{rid}: evidence uses none of the rule's keywords but {n} of {o}'s ({', '.join(hits[:5])}): is it written on the wrong row?"))
+            continue
+        parts = [x for k in ("evidence", "issue") for x in SENTENCES.split(str(v.get(k, ""))) if x.strip()]
+        if len(parts) < 2:
+            continue
+        worst = max(((*foreign(rid, x), x) for x in parts if not mentions_own(rid, x)), key=lambda t: t[0], default=None)
+        if worst and worst[0] >= 2:
+            n, o, hits, sentence = worst
+            warnings.append((n, f"{rid}: one sentence of the row has nothing of this rule but {n} term(s) of {o} ({', '.join(hits[:5])}): "
+                                f"«{cell(sentence.strip())[:90]}» — does it belong to another row?"))
     return warnings, checked, blind
 
 
@@ -167,7 +241,7 @@ def verdict_problem(v, own):
 
 
 # ---------- 3) internal contradictions ----------
-def check_internal(findings, rules, res, patterns, keywords, params, verdicts, own, self_rules=(), self_res=None):
+def check_internal(findings, rules, res, patterns, keywords, params, verdicts, own, self_rules=(), self_res=None, common=()):
     errors, warnings, seen = [], [], set()
     by = {r["id"]: r for r in rules}
     for f in findings:
@@ -200,9 +274,10 @@ def check_internal(findings, rules, res, patterns, keywords, params, verdicts, o
         for rid, r in by.items():
             if rid not in listed:
                 shared = fids & ids_in(rule_text(r), patterns)
-                words = [w for w in keywords(r) if has_word(w, low)]
+                mine_words = meaningful(keywords(r), common)
+                words = [w for w in mine_words if has_word(w, low)] if len(mine_words) >= 2 else []
                 if shared or len(words) >= 2:
-                    warnings.append(f"{fid}: may also concern {rid} ({', '.join(sorted(shared)) or ', '.join(words[:4])}); bind it or ignore after checking")
+                    warnings.append((len(shared) * 2 + len(words), f"{fid}: may also concern {rid} ({', '.join(sorted(shared)) or ', '.join(words[:4])}); bind it or ignore after checking"))
     for r in self_rules:
         sid = r["id"]; v = (self_res or {}).get(sid)
         if sym(v) in ("❌", "⚠️") and not any(sid in (f.get("self_rules") or []) for f in findings):
@@ -323,7 +398,7 @@ def skip_conflicts(work, rules, res, mine, mine_res, own):
     need["params"] = [f"{c['id']} (conflict in params.json)" for c in (params or {}).get("conflicts", [])] \
         + [f"{k} (has a verdict)" for k in verdicts if not params] + [f"{f.get('id')} (binds {f['param']})" for f in findings if f.get("param")]
     need["identity"] = [f"«{e['name']}» (in doc_identity.json)" for e in (ident or {}).get("documents", [])] \
-        + [f"{r['id']} (its source is the target itself)" for r in reference if Path(str((r.get("source") or {}).get("doc", ""))).stem in targets]
+        + [f"{r['id']} (its source is the target itself)" for r in reference if doc_stem(str((r.get("source") or {}).get("doc", ""))) in targets]
     need["self-rules"] = [f"{c['id']} (candidate in self_sections.json)" for c in (declared or {}).get("candidates", [])] \
         + [f"{r['id']} (row in self_rules.json)" for r in mine] + [f"{i} (result in self_results.json)" for i in mine_res if i not in {r['id'] for r in mine}] \
         + [f"{f.get('id')} (binds {', '.join(f['self_rules'])})" for f in findings if f.get("self_rules")]
@@ -337,6 +412,47 @@ def skip_conflicts(work, rules, res, mine, mine_res, own):
     return errors
 
 
+# ---------- root findings ----------
+def root_findings(rows, findings, own):
+    """rows: [(id, result)] of the violating rows. Rows bound to the same internal finding, or with the same target location and the
+    same issue text, are one root finding. Returns [{"findings": [...], "rows": [ids], "label": str}] in order of the first row."""
+    parent = {i: i for i, _ in rows}
+
+    def top(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]; x = parent[x]
+        return x
+
+    known = {str(f.get("id")) for f in findings}
+    rx = re.compile(rf"(?<![\w-]){re.escape(own.p['finding'])}-\d+(?!\d)")
+    bound, first = {}, {}
+
+    def norm(s):
+        return " ".join(re.findall(r"\w+", fold(own.any.sub(" ", str(s or "")))))
+
+    for rid, v in rows:
+        mine = {f["id"] for f in findings if rid in (f.get("rules") or []) + (f.get("self_rules") or [])} | (set(rx.findall(text_of(v))) & known)
+        bound[rid] = mine
+        keys = sorted(mine)
+        loc, issue = norm(v.get("target_loc")), norm(v.get("issue"))
+        if loc and issue:
+            keys.append((loc, issue))
+        for k in keys:
+            if k in first:
+                parent[top(rid)] = top(first[k])
+            else:
+                first[k] = rid
+    groups = {}
+    for rid, _ in rows:
+        groups.setdefault(top(rid), []).append(rid)
+    out = []
+    for members in groups.values():
+        ifs = sorted(set().union(*(bound[m] for m in members)), key=lambda x: int(x.rsplit("-", 1)[1]))
+        head = " + ".join(ifs) or ("same location and issue" if len(members) > 1 else "")
+        out.append({"findings": ifs, "rows": members, "label": f"{head} → {', '.join(members)}" if head else members[0]})
+    return out
+
+
 # ---------- everything, for gates.collect ----------
 def collect(work, rules, res, patterns_file=None, report_text=None):
     """{summary, sections, required, errors, skipped}"""
@@ -345,7 +461,7 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
         patterns_file = Path(work) / "id_patterns.json"
     patterns, _ = load_patterns(patterns_file)
     chosen, prefix_data = prefixes.load(work); own = Own(chosen)
-    out = {"summary": [], "sections": [], "required": [], "errors": [], "skipped": []}
+    out = {"summary": [], "sections": [], "required": [], "errors": [], "skipped": [], "warnings": [], "roots": []}
     sections, tbd, findings = read(work, "ref_sections.json"), read(work, "tbd.json"), read(work, "internal.json")
     mine, mine_res = self_register(work)
     files, errs = prefixes.texts(work); out["errors"] += errs
@@ -373,7 +489,9 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
         problem = verdict_problem(v, own)
         if problem: out["errors"].append(f"{rid}: {problem}")
     errs, warnings = check_aggregates(rules + mine, {**res, **mine_res}, sections, own); out["errors"] += errs
-    w, checked, blind = check_evidence(rules, res, patterns, keywords, own); warnings += w
+    common = common_words(files, rules)
+    warnings = [(100, x) for x in warnings]                                  # structural warnings come first
+    w, checked, blind = check_evidence(rules, res, patterns, keywords, own, common); warnings += w
 
     texts = [(f"results of {rid}", text_of(v)) for rid, v in {**res, **mine_res}.items()]
     texts += [(f"internal finding {f.get('id')}", str(f.get("text", ""))) for f in findings or []]
@@ -390,14 +508,14 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
         if error: out["errors"].append(error)
         if mine: out["errors"].append("self_rules.json exists but self_rules.py scan was not run (self_sections.json)")
     else:
-        target = next((f for f in files if Path(f).stem == declared["doc"]), None)
+        target = next((f for f in files if doc_stem(f) == declared["doc"]), None)
         if target is None: out["errors"].append(f"target's own rules: the extracted target {declared['doc']}.txt was not found")
-        out["errors"] += self_rules_mod.check(declared, mine, mine_res, Path(target).read_text(encoding="utf-8") if target else None)
+        out["errors"] += self_rules_mod.check(declared, mine, mine_res, "\n".join(f"{l}\t{t}" for l, t in parse_lines(target)) if target else None)
         copied = {r.get("doc_id") for r in mine if r.get("doc_id")}
         for r in rules:
             src = r.get("source") or {}; quote = str(src.get("quote", ""))
             hit = next((d for d in sorted(copied) if quote.startswith(d) and self_rules_mod.occurs(d, quote)), None)
-            if hit and Path(str(src.get("doc", ""))).stem == declared["doc"]:
+            if hit and doc_stem(str(src.get("doc", ""))) == declared["doc"]:
                 out["errors"].append(f"{r['id']}: {hit} is the target's own rule: register it only in self_rules.json (the target would verify itself)")
         done = sum(1 for c in declared["candidates"] if c.get("class") in self_rules_mod.CLASSES)
         tally = ", ".join(f"{k} {n}" for k in ("✅", "❌", "⚠️", "➖", "❓", DECISION) if (n := sum(1 for r in mine if sym(mine_res.get(r["id"])) == k)))
@@ -430,7 +548,7 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
         out["summary"].append(line); out["skipped"].append(entry)
         if error: out["errors"].append(error)
     else:
-        errs, w = check_internal(findings, rules, res, patterns, keywords, params, verdicts, own, mine, mine_res); out["errors"] += errs; warnings += w
+        errs, w = check_internal(findings, rules, res, patterns, keywords, params, verdicts, own, mine, mine_res, common); out["errors"] += errs; warnings += w
         bound = sum(1 for f in findings if f.get("rules") or f.get("self_rules"))
         out["summary"].append(f"- Internal findings: {len(findings)} (bound to rules: {bound}, without a rule: {len(findings) - bound})")
         out["sections"] += ["## Internal findings bound to rules", "| Finding | IDs | Rules | Text |", "|---|---|---|---|"]
@@ -458,9 +576,20 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
         block = ["## Changed in self-audit (öz-denetimde değişti)", *(changed or ["- (no verdict changed)"])]
         out["sections"] += block + [""]; out["required"] += block
 
-    out["summary"].append(f"- Judgement warnings: {len(warnings)} (evidence fit checked on {checked} rows, not checkable on {blind})")
-    if warnings:
-        lines = [f"- {x}" for x in warnings]
+    ranked = [t for _, t in sorted(warnings, key=lambda x: -x[0])]          # highest score first, ties keep their order
+    out["warnings"] = ranked
+    rest = len(ranked) - WARNING_LIMIT
+    out["summary"].append(f"- Judgement warnings: {len(ranked)} (evidence fit checked on {checked} rows, not checkable on {blind})"
+                          + (f"; the {WARNING_LIMIT} highest-scoring are listed, {rest} more only counted" if rest > 0 else ""))
+    if ranked:
+        lines = [f"- {x}" for x in ranked[:WARNING_LIMIT]]
+        if rest > 0:
+            lines.append(f"- … plus {rest} more warning(s) with a lower score (all of them: judgement_warnings.txt in the work folder)")
         out["sections"] += ["## Judgement warnings (check each one)", *lines, ""]; out["required"] += lines
+
+    bad = [(r["id"], v) for r in rules + mine if sym(v := {**res, **mine_res}.get(r["id"])) in ("❌", "⚠️")]
+    out["roots"] = root_findings(bad, findings or [], own)
+    own_bad = sum(1 for i, _ in bad if i in {r["id"] for r in mine})
+    out["summary"].append(f"- Violations: {len(bad)} rows (❌/⚠️, {own_bad} of them the target's own rules), {len(out['roots'])} root findings")
     out["required"] += out["summary"]
     return out

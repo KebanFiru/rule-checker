@@ -3,7 +3,7 @@
 Model layout and rules: `process-model.md`.
 
 ### B. UPDATE RUN (model exists; read the model + invariants first)
-1. `python3 $S/doc_diff.py old.pdf new.pdf -o work/diff.json` (PDF/DOCX; line breaks/hyphens/footers are listed separately as noise).
+1. `python3 $S/doc_diff.py old.pdf new.pdf -o work/diff.json` (PDF/DOCX; line breaks/hyphens/footers are listed separately as noise; for a PDF with tracked changes pass the extracted `.txt` files).
 2. `python3 $S/impact.py --model <model> --diff work/diff.json --rules <rules.json> --invariants <invariants.yaml> -o work/impact` → affected nodes, neighbours, nodes using the same parameter, rules, invariants; changes with no counterpart in the model (🆕/❓). **Run it BEFORE updating the model.**
 3. Check every affected item in the new document one by one; also re-verify ALL invariants (not only the affected ones): `model_check.py invariants … --doc work/ex/new.txt -o work/inv.json`.
 4. Classify: ✅ expected change | ❌ regression (was correct, now broken) | ⚠️ unpropagated change (changed in one place, still old in linked places) | 🆕 new process/step (not in the model) | ❓ model needs updating.

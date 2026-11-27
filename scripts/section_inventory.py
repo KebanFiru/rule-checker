@@ -18,7 +18,7 @@ Rules and facts point to their section with source.section = "<section id>"; the
 import argparse, json, re, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
-from id_index import parse_lines
+from id_index import parse_lines, doc_stem
 import progress
 
 CLASSES = ("rule-bearing", "fact", "open-question", "descriptive-only")
@@ -28,6 +28,17 @@ MARKDOWN = re.compile(r"^(#{1,6})\s+(.*)$")
 TABLE = re.compile(r"^(?:Table|Tablo)\s+[A-Z]?\d+(?:\.\d+)*\b.*$")
 MODAL = re.compile(r"\b(?:shall|must|required|mandatory|zorunlu\w*|gerekir|gerekmektedir|gerekli\w*|şarttır)\b|\b\w+m[ae]l[ıi](?:dır|dir)?\b", re.I)
 DURATION = re.compile(r"\b(?:\d+|one|two|three|four|five|six|seven|ten|iki|üç|dört|beş|on)\s*[-)]?\s*(?:business\s+|working\s+|iş\s+)?(?:days?|weeks?|months?|years?|hours?|minutes?|gün\w*|hafta\w*|ay\b|yıl\w*|saat\w*|dakika\w*)", re.I)
+MONTHS = set(("january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept "
+              "oct nov dec ocak şubat mart nisan mayıs haziran temmuz ağustos eylül ekim kasım aralık").split())
+SENTENCE = re.compile(r"\b(?:cannot|must|shall|will|should)\b|\d\.\s+[A-ZÇĞİÖŞÜ]")          # a heading is not a sentence
+MAX_TITLE, MAX_WORDS = 80, 12
+
+
+def sentence_like(title):
+    """A numbered line that is a date or the start of a sentence ("23 Feb – 17 Mar", "30 ECTS cannot …"), not a heading."""
+    words = title.split()
+    return (words[0].strip(".,;:()–—-").replace("İ", "i").lower() in MONTHS or len(title) > MAX_TITLE or len(words) > MAX_WORDS
+            or title.endswith("…") or SENTENCE.search(title) is not None)
 
 
 def heading(text):
@@ -41,7 +52,7 @@ def heading(text):
     if m and not text.rstrip().endswith((".", ";", ",")):
         return f"Appendix {m.group(2)}", m.group(3).strip() or text.strip(), "appendix", 1
     m = NUMBERED.match(text)
-    if m and not text.rstrip().endswith((".", ";", ":", ",")) and not re.search(r"\s\d+$", text):
+    if m and not text.rstrip().endswith((".", ";", ":", ",")) and not re.search(r"\s\d+$", text) and not sentence_like(m.group(2).strip()):
         return m.group(1), m.group(2).strip(), "heading", m.group(1).count(".") + 1
     return None
 
@@ -59,27 +70,51 @@ def signals(body):
             "modal": sorted({m.group(0).lower() for m in MODAL.finditer(text)})}
 
 
+def is_annex(later, body_top):
+    """`later`: the top-level numbers after a restart at 1. It was only a numbered list inside the body when the body's next number
+    turns up although the restarted numbering has not reached it."""
+    reached = 1
+    for n in later:
+        if n == body_top + 1 and n != reached + 1:
+            return False
+        if n == reached + 1:
+            reached = n
+    return True
+
+
 def scan_doc(path):
-    doc = Path(path).stem
+    doc = doc_stem(path)
     lines = list(parse_lines(path))
     secs, cur, used = [], None, {}
 
-    def start(number, title, kind, level, loc):
+    def start(number, title, kind, level, loc, annex=0):
         nonlocal cur
-        base = f"{doc}#{number or title[:40]}"
+        base = f"{doc}#" + (f"annex{annex}:" if annex else "") + (number or title[:40])
         used[base] = used.get(base, 0) + 1
         sid = base if used[base] == 1 else f"{base}~{used[base]}"
         cur = {"id": sid, "doc": doc, "number": number, "title": title, "kind": kind, "level": level, "start": loc, "end": loc,
                "pages": [], "tables": [], "_body": []}
+        if annex: cur["annex"] = annex
         secs.append(cur)
 
     has_headings = any(heading(t) for _, t in lines)
-    for loc, text in lines:
+    body_top, restarted, annexes = 0, False, 0   # highest top-level number of the main body; True after the numbering went back to 1
+    heads = [heading(t.strip()) if has_headings else None for _, t in lines]
+    tops = [int(h[0]) if h and h[2] == "heading" and h[3] == 1 and h[0].isdigit() else None for h in heads]
+    for pos, ((loc, text), h) in enumerate(zip(lines, heads)):
         text = text.strip()
-        h = heading(text) if has_headings else None
         pg = page_of(loc)
         if h:
-            start(*h, loc)
+            number, title, kind, level = h
+            if kind == "heading" and re.fullmatch(r"\d+(?:\.\d+)*", number):
+                top = int(number.split(".")[0])
+                if level == 1 and top == 1 and body_top >= 2 and is_annex([n for n in tops[pos + 1:] if n is not None], body_top):
+                    restarted = True; annexes += 1
+                if restarted:
+                    kind = "appendix"
+                else:
+                    body_top = max(body_top, top)
+            start(number, title, kind, level, loc, annexes if restarted else 0)
         elif not has_headings and pg is not None and (cur is None or pg not in cur["pages"]):
             start(f"p{pg}", f"page {pg} (document has no headings)", "page", 1, loc)
         elif cur is None:
@@ -196,7 +231,7 @@ def tokens(s):
 
 
 def matches_file(name, path):
-    n, f = tokens(name), tokens(Path(path).stem)
+    n, f = tokens(name), tokens(doc_stem(path))
     if not n:
         return False
     contiguous = any(f[i:i + len(n)] == n for i in range(len(f) - len(n) + 1))
@@ -232,7 +267,7 @@ def note_for(e, target, lang):
 def cmd_identity(a):
     mapping = dict(x.split("=", 1) for x in a.map or [])
     confirmed = dict(x.split("=", 1) for x in a.confirmed or [])
-    target = Path(a.target).stem
+    target = doc_stem(a.target)
     lines = list(parse_lines(a.target))
     docs = []
     for name in a.names:
@@ -241,7 +276,7 @@ def cmd_identity(a):
         if len(files) > 1:
             sys.exit(f"«{name}» matches several files ({', '.join(e['candidates'])}): ask the user, then pass --map \"{name}=<file>\"")
         if files:
-            e.update(status="file", file=Path(files[0]).name, self_reference=Path(files[0]).stem == target)
+            e.update(status="file", file=Path(files[0]).name, self_reference=doc_stem(files[0]) == target)
         else:
             sec = internal_section(name, lines)
             if sec:

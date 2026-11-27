@@ -12,10 +12,10 @@ progress.json records the step as skipped with a reason (shown and counted at th
   env.json, progress.json                     skipped checks
   internal.json, tbd.json, self_audit.json    judgement checks (judgement.py)
 """
-import json
+import json, re
 from collections import Counter
 from pathlib import Path
-import visual_inventory, section_inventory, param_check, progress, judgement, prefixes
+import visual_inventory, section_inventory, param_check, progress, judgement, prefixes, id_index
 
 ASSUMPTION = "⚑ source assumption"
 
@@ -29,6 +29,65 @@ def read(work, name):
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
+def own_violations(work):
+    """❌/⚠️ rows of the target's own rules, shaped like the reference rows of the violations table."""
+    mine, res = judgement.self_register(work)
+    out = []
+    for r in mine:
+        v = res.get(r["id"]); s = judgement.sym(v)
+        if s in ("❌", "⚠️"):
+            src = r.get("source") or {}
+            out.append((r, v, s, f"target's own rule {r.get('doc_id') or src.get('section', '')} p{src.get('page', '?')}"))
+    return out
+
+
+def tracked_changes(work, rules):
+    """(summary lines, skipped entries, errors) from the extraction metadata and <stem>.changes.json next to the extracted text."""
+    lines, skipped, errors = [], [], []
+    for f in prefixes.texts(work)[0]:
+        p = Path(f)
+        if p.stem.endswith(".current"):
+            continue
+        meta_path = p.with_suffix(".json")
+        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+        info = meta.get("tracked_pdf") or {}
+        if info.get("status") == "not-run":
+            skipped.append((f"tracked-change detection in {p.stem}", info.get("reason", "pdfplumber is not available"), 1))
+        changes = p.with_name(f"{p.stem}.changes.json")
+        if changes.exists():
+            data = json.loads(changes.read_text(encoding="utf-8"))
+            n = Counter(c["type"] for c in data["changes"])
+            current = p.with_name(f"{p.stem}.current.txt")
+            if current.exists():
+                line = (f"- Tracked changes detected (izlenen değişiklik algılandı) in {p.stem}: deleted {n['deleted']}, added {n['added']}, "
+                        f"possible deletions marked only by colour (kept, check them) {n['suspected']}; rules must be registered from {current.name}")
+            else:
+                line = (f"- Possible tracked changes in {p.stem}: {n['suspected']} red/grey text run(s) without a strike line; nothing was removed, "
+                        f"check them in {changes.name}")
+            if data.get("unremoved"):
+                line += f"; {len(data['unremoved'])} deletion(s) could NOT be removed from the current text (pages {', '.join(map(str, sorted({u['page'] for u in data['unremoved']})))})"
+            lines.append(line)
+            if current.exists():
+                errors += deleted_quotes(p, current, rules)
+        elif meta.get("tracked_changes"):
+            lines.append(f"- Tracked changes detected (izlenen değişiklik algılandı) in {p.stem}: {len(meta['tracked_changes'])} DOCX revision(s); the extracted text is the current version")
+    return lines, skipped, errors
+
+
+def deleted_quotes(original, current, rules):
+    """A rule quoting text that exists only in the version before the deletions was registered from the wrong text."""
+    def flat(path):
+        return "".join(re.sub(r"[^\w]", "", l.split("\t", 1)[-1]).lower() for l in path.read_text(encoding="utf-8").splitlines())
+    old, new = flat(original), flat(current)
+    errors = []
+    for r in rules:
+        src = r.get("source") or {}
+        quote = re.sub(r"[^\w]", "", str(src.get("quote") or r.get("quote") or "")).lower()
+        if quote and id_index.doc_stem(str(src.get("doc", ""))) == original.stem and quote in old and quote not in new:
+            errors.append(f"{r['id']}: its quote contains text that is deleted (tracked change) in {original.stem}: register it from {current.name}")
+    return errors
+
+
 def collect(work, rules, results, env_path=None, patterns=None, report_text=None):
     """{summary: [lines], sections: [markdown lines], required: [lines that must be in the report], errors: [..], assumed: set(rule ids)}"""
     errors, required, sections, skipped, summary = [], [], [], [], []
@@ -36,6 +95,13 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
     facts = [r for r in rules if own.is_fact(r)]
     summary.append(f"- Rules: {len(rules) - len(facts)}; facts: {len(facts)}")
     state = progress.load(Path(work) / "progress.json")
+
+    line, error = progress.run_summary(state, {**results, **judgement.self_register(work)[1]})
+    summary.append(line)
+    if error:
+        errors.append(error)
+    changed_lines, changed_skips, changed_errors = tracked_changes(work, rules)
+    summary += changed_lines; skipped += changed_skips; errors += changed_errors
 
     def missing_gate(step, label, command):
         line, entry, error = judgement.missing_step(state, step, label, command)
@@ -48,7 +114,7 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
     if ident:
         target = ident["target"]
         for r in rules:
-            if Path(str((r.get("source") or {}).get("doc", ""))).stem == target:
+            if id_index.doc_stem(str((r.get("source") or {}).get("doc", ""))) == target:
                 assumed.add(r["id"])
         for e in ident["documents"]:
             summary.append(f"- Document identity: {e['note']}")
@@ -67,7 +133,7 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
         sections += ["## Reference coverage", "| Section | Title | Pages | Class | Rules | Facts | Reason |", "|---|---|---|---|---|---|---|"]
         for r in rows:
             pg = f"{r['pages'][0]}-{r['pages'][-1]}" if r["pages"] else r["start"]
-            sections.append(f"| {cell(r['id'])} | {cell(r['title'])} | {pg} | {r.get('class') or '**UNCLASSIFIED**'} | {len(r['rules'])} | {len(r['facts'])} | {cell(r.get('reason'))} |")
+            sections.append(f"| {cell(r['id'])} | {cell(('[appendix: numbering restarts] ' if r.get('kind') == 'appendix' and r.get('annex') else '') + r['title'])} | {pg} | {r.get('class') or '**UNCLASSIFIED**'} | {len(r['rules'])} | {len(r['facts'])} | {cell(r.get('reason'))} |")
             required.append(f"| {cell(r['id'])} |")
         if warns:
             sections += ["", "Warnings (descriptive-only sections with values or obligation words; re-check them):"] + [f"- {w}" for w in warns]
@@ -138,4 +204,6 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
     summary += [f"  - {what}: {reason} ({n})" for what, reason, n in skipped]
     summary += judged["summary"]
     required = summary + required + judged["required"]
-    return {"summary": summary, "sections": sections, "required": required, "errors": errors, "assumed": assumed}
+    required += [f"| {n} | {root['label']} |" for n, root in enumerate(judged["roots"], 1)]       # the numbered violations line
+    return {"summary": summary, "sections": sections, "required": required, "errors": errors, "assumed": assumed,
+            "roots": judged["roots"], "warnings": judged["warnings"]}

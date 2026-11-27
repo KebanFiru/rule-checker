@@ -13,6 +13,12 @@ def files(d):
     return {str(p.relative_to(d)): p for p in sorted(Path(d).rglob("*")) if p.is_file() and not p.is_symlink() and "fixtures" not in p.parts[:2]}
 
 
+def without_tracked_skips(p):
+    """Report text without the one thing that depends on pdfplumber being installed: the skipped tracked-change detection."""
+    text = re.sub(r"(?m)^.*tracked-change detection.*\n", "", p.read_text(encoding="utf-8"))
+    return re.sub(r"(?m)^- Skipped checks: \d+$", "- Skipped checks: N", text)
+
+
 def classify(rel, pa, pb):
     if pa is None or pb is None:
         return "expected environment difference" if rel.startswith(ENV_PREFIXES) else "(c) file only in one run"
@@ -20,11 +26,13 @@ def classify(rel, pa, pb):
         return "identical"
     if rel.startswith(ENV_PREFIXES):
         return "expected environment difference"
+    if rel.endswith(".md") and without_tracked_skips(pa) == without_tracked_skips(pb):
+        return "expected environment difference"
     if "/ex/" in "/" + rel and rel.endswith(".json"):                 # extraction metadata: engines/versions differ by design
         ja, jb = json.loads(pa.read_text()), json.loads(pb.read_text())
         for j in (ja, jb):
             j.pop("engines", None); j.pop("repairs", None); j["warnings"] = [w for w in j.get("warnings", []) if "different word sets" not in w and "Page count differs" not in w]
-            j.pop("engine_diffs", None)
+            j.pop("engine_diffs", None); j.pop("tracked_pdf", None)
         return "expected environment difference" if ja == jb else "(b) finding/verdict difference (extraction metadata)"
     if "/ex/" in "/" + rel and rel.endswith(".txt"):
         ta, tb = pa.read_text(), pb.read_text()

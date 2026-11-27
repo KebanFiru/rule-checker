@@ -6,7 +6,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$(mkdir -p "$1" && cd "$1" && pwd)"
 S1="$REPO/tests/run"; S2="$REPO/tests/run2"; F="$REPO/tests/fixtures"; P="$F/process"
-cd "$OUT"; ln -sfn "$F" fixtures; rm -rf s1 s1docx s2 s3; mkdir -p s1 s2      # no stale work files from an earlier run
+cd "$OUT"; ln -sfn "$F" fixtures; rm -rf s1 s1d s1docx s2 s3; mkdir -p s1 s2      # no stale work files from an earlier run
 sc() { local s="$1"; shift; python3 "$REPO/scripts/$s" "$@"; }
 EA=(); [ -n "${ENGINE:-}" ] && EA=(--engine "$ENGINE")   # optional primary PDF engine
 
@@ -15,6 +15,7 @@ sc extract.py "$F/target_srs.pdf" "$F/rules.pdf" "$F/review.docx" --docx-source 
 python3 "$REPO/tests/build_rules.py" s1/ex/rules.txt s1/rules.json rules.pdf
 sc id_index.py s1/ex/target_srs.txt -o s1/id_index.json
 sc xref_check.py s1/ex/target_srs.txt --numbers --also-numbers s1/ex/rules.txt -o s1/xref_report.md >/dev/null
+sc progress.py start s1/progress.json
 sc prefixes.py s1/ex/target_srs.txt s1/ex/rules.txt -o s1/prefixes.json | head -1
 for st in reference visual self-rules; do
   sc progress.py step s1/progress.json $st skipped --reason "scenario 1 tests the rule matrix; this gate is tested in scenario 1c" | tail -1
@@ -70,6 +71,7 @@ grep -E "^(Visual pass|⏭️)" s1/report_env.md || true
 
 echo; echo "### scenario 1c: nothing skipped silently (visual / reference / identity / parameters)"
 S3="$REPO/tests/run3"; C="$F/coverage"; mkdir -p s3
+sc progress.py start s3/progress.json
 sc extract.py "$C/target_ui.pdf" "$C/ref_policy.pdf" "${EA[@]}" -o s3/ex
 sc prefixes.py s3/ex/target_ui.txt s3/ex/ref_policy.txt -o s3/prefixes.json | head -1
 sc section_inventory.py identity --target s3/ex/target_ui.txt --files "$C/ref_policy.pdf" --names "Ek B" -o s3/doc_identity.json | head -1
@@ -95,6 +97,9 @@ sc matrix.py coverage s3/rules.json s3/results.json -o s3/coverage.md
 { printf '# Rule Check Report\n**Target:** target_ui.pdf  **Reference:** ref_policy.pdf, "Ek B"\n\n'; cat s3/coverage.md; echo; cat s3/internal.md; } > s3/report.md
 sc matrix.py verify s3/rules.json s3/report.md
 python3 "$REPO/tests/score_coverage.py" s3
+
+echo; echo "### scenario 1d: real-run regressions (headings, warnings, root findings, earlier runs, tracked-change gates)"
+python3 "$REPO/tests/score_third_run.py" s1d
 
 echo; echo "### engine cross-check controls"
 python3 "$REPO/tests/check_engine_warning.py"

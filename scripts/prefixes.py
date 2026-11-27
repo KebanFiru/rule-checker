@@ -10,7 +10,7 @@ progress.json, stated at the top of the report, and enforced by matrix.py verify
 import argparse, json, os, re, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
-from id_index import parse_lines
+from id_index import parse_lines, doc_stem
 import progress
 
 DEFAULT = {"rule": "R", "fact": "F", "self": "SD", "tbd": "TBD", "finding": "IF"}
@@ -28,7 +28,7 @@ def first_use(prefix, files):
         for loc, text in parse_lines(f):
             m = rx.search(text)
             if m:
-                return f"{m.group(0)} in {Path(f).stem} {loc}"
+                return f"{m.group(0)} in {doc_stem(f)} {loc}"
     return None
 
 

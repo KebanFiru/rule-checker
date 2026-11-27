@@ -10,7 +10,7 @@ import argparse, json, re, sys
 from collections import defaultdict
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
-from id_index import load_patterns, build_index, parse_lines
+from id_index import load_patterns, build_index, parse_lines, doc_stem
 
 
 def split_id(i):
@@ -40,7 +40,7 @@ def numbers(files, units):
     rx = re.compile(rf"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(?:-\s*)?({unit_rx})(?![\wçğıöşü])", re.I)
     rows = []
     for f in files:
-        doc = Path(f).stem
+        doc = doc_stem(f)
         for loc, text in parse_lines(f):
             ids = re.findall(r"\b[A-Z]{1,4}-[A-Z]?\.?\d+(?:\.\d+)*\b", text)
             for m in rx.finditer(text):

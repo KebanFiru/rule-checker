@@ -220,19 +220,21 @@ def gate_run(steps, skips=(), also_delete=(), extra=None, dependencies=False):
         return r.returncode, r.stdout, body.split("## Summary")[0]
 
 
+# without pdfplumber the tracked-change detection of each extracted PDF is one more skipped check
+NOPLUMBER = sum(J(p.name, d / "ex").get("tracked_pdf", {}).get("status") == "not-run" for p in (d / "ex").glob("*.json"))
 for step, (label, _) in GATES.items():
     code, out, top = gate_run([step])
     line(f"mandatory {step}: not run is rejected", (code != 0, f"{label} not run" in out, f"- {label}: NOT RUN" in top), (True, True, True))
     code, out, top = gate_run([step], skips=[(step, "no input for it")])
     line(f"mandatory {step}: skipped with a reason passes, shown and counted once",
-         (code, f"- {label}: SKIPPED (no input for it)" in top, "- Skipped checks: 1" in top, top.count("no input for it")), (0, True, True, 2))
+         (code, f"- {label}: SKIPPED (no input for it)" in top, f"- Skipped checks: {NOPLUMBER + 1}" in top, top.count("no input for it")), (0, True, True, 2))
 code, out, top = gate_run([], skips=[], also_delete=["self_audit.json"], extra=lambda w: run("progress.py", "step", "progress.json", "self-audit", "skipped", "--reason", "no time", cwd=w))
-line("mandatory self-audit: skipped with a reason passes, counted once", (code, "- Self-audit: SKIPPED (no time)" in top, "- Skipped checks: 1" in top), (0, True, True))
+line("mandatory self-audit: skipped with a reason passes, counted once", (code, "- Self-audit: SKIPPED (no time)" in top, f"- Skipped checks: {NOPLUMBER + 1}" in top), (0, True, True))
 code, out, top = gate_run(["visual"], extra=lambda w: rewrite(w, "progress.json", lambda x: x["steps"].update(visual={"state": "skipped", "reason": " "})))
 line("mandatory: a skip without a reason is rejected", (code != 0, "Visual coverage not run" in out), (True, True))
 code, out, top = gate_run(list(GATES), skips=[(k, f"why {k}") for k in GATES])
 line("all six file-based steps skipped with reasons: accepted, none shown as NOT RUN",
-     (code, top.count(": SKIPPED ("), top.count(": NOT RUN"), "- Skipped checks: 6" in top), (0, 6, 0, True))
+     (code, top.count(": SKIPPED ("), top.count(": NOT RUN"), f"- Skipped checks: {NOPLUMBER + 6}" in top), (0, 6, 0, True))
 code, out, top = gate_run(list(GATES))
 line("all six missing without a reason: each one rejected", sum(f"{label} not run" in out for label, _ in GATES.values()), 6)
 code, out, top = gate_run([], extra=lambda w: (w / "internal.json").write_text("[]", encoding="utf-8"))
@@ -414,4 +416,35 @@ pats, _ = load_patterns()
 line("IDs: use-case exception steps and internal findings", sorted(judgement.ids_in("UC-3.7.EX.2 and UC-3.7.EX.1 vs S-4.1, IC-3. See UC-3.7.", pats)),
      ["IC-3", "S-4.1", "UC-3.7", "UC-3.7.EX.1", "UC-3.7.EX.2"])
 line("aggregate wording not triggered by a single missing item", bool(judgement.AGGREGATE.search("No Scope section. Headings 1-6 listed; the word does not occur")), False)
+# ---------- warning cap, root findings and the earlier-run line in a real report ----------
+with tempfile.TemporaryDirectory() as t:
+    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+    rewrite(w, "internal.json", lambda x: x + [{"id": f"IF-{n}", "text": "the confirmation fee appears before payment", "rules": [], "no_rule_reason": "test"} for n in range(50, 90)])
+    run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
+    body = (w / "coverage.md").read_text(encoding="utf-8"); listed = body.split("## Judgement warnings")[1].split("\n## ")[0].strip().splitlines()[1:]
+    total = int(re.search(r"- Judgement warnings: (\d+)", body).group(1)); full = (w / "judgement_warnings.txt").read_text(encoding="utf-8").splitlines()
+    line("warnings: at most 30 listed, the rest counted, all in the file",
+         (total > 30, len(listed), f"plus {total - 30} more" in listed[-1], len(full) == total, f"{total - 30} more only counted" in body), (True, 31, True, True, True))
+    (w / "report.md").write_text("# R\n\n" + body, encoding="utf-8")
+    line("warnings: the capped report verifies", run("matrix.py", "verify", "rules.json", "report.md", cwd=w).returncode, 0)
+results, own_results = J("results.json"), J("self_results.json")
+bad = [i for i, v in {**results, **own_results}.items() if judgement.sym(v) in ("❌", "⚠️")]
+table = rep.split("## Violations")[1].split("\n## ")[0]
+rows = [l.split("|")[2].strip() for l in table.splitlines() if re.match(r"\| \d+ \|", l)]
+in_table = [i for r in rows for i in re.findall(r"(?<![\w-])(?:R|F|SD)-\d+", r.split("→")[-1])]
+line("violations: every violating row once, own rules included", (sorted(in_table), any(i.startswith("SD-") for i in in_table)), (sorted(bad), True))
+line("violations: rows of one internal finding share a line; both counts in the summary",
+     (len(rows) < len(bad), f"- Violations: {len(bad)} rows" in rep, f"{len(rows)} root findings" in rep), (True, True, True))
+with tempfile.TemporaryDirectory() as t:
+    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+    n, single = next((n, r) for n, r in enumerate(rows, 1) if "→" not in r)          # its ID is also in the coverage table
+    report_replace(w, f"| {n} | {single} |", f"| {n} | removed |")
+    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("violations: a root finding dropped from the report is rejected", (r.returncode != 0, "missing or stale" in r.stdout), (True, True))
+line("earlier run: the sample report states that none was found", "- Previous run results: none found" in rep.split("## Summary")[0], True)
+with tempfile.TemporaryDirectory() as t:
+    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+    rewrite(w, "progress.json", lambda x: x.pop("run") and None)
+    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("earlier run never checked: rejected", (r.returncode != 0, "earlier results not checked" in r.stdout), (True, True))
 print("\nSUMMARY:", "FULL" if all(tot) else "GAPS")

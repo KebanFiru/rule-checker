@@ -17,10 +17,8 @@ FOOT = re.compile(r"^\s*(Sayfa|Page)\s*\d+(\s*/\s*\d+)?\s*$", re.I)
 def load_lines(path):
     p = Path(path); suf = p.suffix.lower()
     if suf == ".txt":
-        out = []
-        for raw in p.read_text(encoding="utf-8").splitlines():
-            if "\t" in raw: out.append(tuple(raw.split("\t", 1)))
-        return out
+        from id_index import parse_lines
+        return list(parse_lines(p))
     import extract
     if suf == ".pdf":
         return [(f"p{pi}:L{li}", l) for pi, ls in enumerate(extract.pdf_pages(p), 1) for li, l in enumerate(ls, 1)]

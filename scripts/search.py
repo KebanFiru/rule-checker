@@ -12,7 +12,7 @@ Matches beyond --max are counted and reported, not silently dropped. Case-insens
 import argparse, json, re, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
-from id_index import parse_lines
+from id_index import parse_lines, doc_stem
 from matrix import keywords, load_rules
 
 
@@ -21,7 +21,7 @@ def fold(s):
 
 
 def load(files):
-    return [(Path(f).stem, list(parse_lines(f))) for f in files]
+    return [(doc_stem(f), list(parse_lines(f))) for f in files]
 
 
 def hits(docs, rx):

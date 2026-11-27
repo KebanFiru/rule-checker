@@ -16,8 +16,23 @@ def load_patterns(p=None):
     return [(x["name"], re.compile(x["regex"])) for x in cfg["patterns"]], cfg
 
 
+def doc_stem(path):
+    """Document name of an extracted file: "ref.current.txt" and "ref.txt" are both "ref"."""
+    return Path(path).stem.removesuffix(".current")
+
+
+def current_path(path):
+    """A PDF with tracked changes has <stem>.current.txt (deleted text removed) next to <stem>.txt: that is what gets read."""
+    p = Path(path)
+    if p.suffix == ".txt" and not p.stem.endswith((".current", ".second", ".tables")):
+        cur = p.with_name(f"{p.stem}.current.txt")
+        if cur.exists():
+            return cur
+    return p
+
+
 def parse_lines(path):
-    for raw in Path(path).read_text(encoding="utf-8").splitlines():
+    for raw in current_path(path).read_text(encoding="utf-8").splitlines():
         if "\t" in raw:
             loc, text = raw.split("\t", 1)
             yield loc, text
@@ -30,7 +45,7 @@ def norm_id(s):
 def build_index(files, patterns):
     idx = {}
     for f in files:
-        doc = Path(f).stem
+        doc = doc_stem(f)
         for loc, text in parse_lines(f):
             first_cell = text.split(" | ")[0].strip()
             for name, rx in patterns:

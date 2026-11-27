@@ -8,6 +8,8 @@ Output line format:  <location>\t<text>
   TXT/MD location: L<line>
 For DOCX also <stem>.json: tracked changes (ins/del, author) and comments (author, date, anchored text, location).
 For PDF also <stem>.second.txt: the output of the other engine (pypdf or pdftotext), used as an independent second opinion.
+PDF tracked changes (strikeout, line through text; needs pdfplumber, see tracked.py): <stem>.current.txt (deleted text removed, same
+locations; the other scripts read it automatically when given <stem>.txt) and <stem>.changes.json (page, deleted/added text).
 
 Usage:
   extract.py FILE [FILE...] [-o OUT] [--engine pdftotext|pypdf] [--tables] [--docx-source SRC.docx] [--reading-order]
@@ -19,6 +21,8 @@ import argparse, json, re, shutil, subprocess, sys, unicodedata, zipfile
 from collections import Counter
 from pathlib import Path
 import xml.etree.ElementTree as ET
+sys.path.insert(0, str(Path(__file__).parent))
+import tracked
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 WORD = re.compile(r"[^\W\d_]{2,}", re.UNICODE)
@@ -134,6 +138,43 @@ def pdf_tables(path, layout_pages):
             for pi, lines in enumerate(layout_pages, 1) for li, l in enumerate(lines, 1) if " | " in l]
     return {"engine": "layout-fallback", "reason": reason,
             "note": "rows reconstructed from -layout text (cells separated by runs of spaces); cell boundaries are heuristic", "rows": rows}
+
+
+def strikeout_annotations(path):
+    """Pages with StrikeOut annotations as seen by pypdf (used when pdfplumber is missing); [] when unknown."""
+    try:
+        import pypdf
+        return [i for i, pg in enumerate(pypdf.PdfReader(str(path)).pages, 1)
+                if any(a.get_object().get("/Subtype") == "/StrikeOut" for a in (pg.get("/Annots") or []))]
+    except Exception:
+        return []
+
+
+def tracked_pdf(path, pages, out, stem):
+    """Detect visible tracked changes; writes <stem>.changes.json and, when text was deleted, <stem>.current.txt."""
+    try:
+        found = tracked.analyse(path, clean)
+    except Exception as e:
+        reason = "pdfplumber is not available" if isinstance(e, ImportError) else f"pdfplumber failed ({type(e).__name__}: {e})"
+        marked = strikeout_annotations(path)
+        if marked:
+            reason += f"; pypdf sees strikeout annotations on page(s) {', '.join(map(str, marked))}: read them, they hold deleted text"
+        return {"status": "not-run", "reason": reason}
+    changes = tracked.changes_of(found)
+    if not changes:
+        return {"status": "none"}
+    current, failed = tracked.remove(pages, found, changes)
+    deleted = sum(1 for c in changes if c["type"] == "deleted")
+    data = {"document": stem, "changes": [tracked.public(c) for c in changes], "unremoved": [tracked.public(c) for c in failed]}
+    (out / f"{stem}.changes.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    if deleted:
+        with open(out / f"{stem}.current.txt", "w", encoding="utf-8") as fh:
+            for pi, lines in enumerate(current, 1):
+                for li, l in sorted(lines.items()):
+                    fh.write(f"p{pi}:L{li}\t{l}\n")
+    return {"status": "detected" if deleted else "suspected", "deleted": deleted,
+            "added": sum(1 for c in changes if c["type"] == "added"), "suspected": sum(1 for c in changes if c["type"] == "suspected"),
+            "unremoved": len(failed)}
 
 
 def pdf_raw_pages(path):
@@ -308,6 +349,8 @@ def main():
     for f in a.files:
         f = Path(f); stem = f.stem
         meta = {"file": str(f), "warnings": []}
+        for old in (f"{stem}.current.txt", f"{stem}.changes.json"):           # never keep the result of an earlier extraction
+            (out / old).unlink(missing_ok=True)
         if f.suffix.lower() == ".pdf":
             have_pdftotext = shutil.which("pdftotext") is not None
             if a.engine == "pdftotext":
@@ -353,6 +396,15 @@ def main():
                 for pi, lines in enumerate(pages, 1):
                     for li, l in enumerate(lines, 1):
                         fh.write(f"p{pi}:L{li}\t{l}\n")
+            info = meta["tracked_pdf"] = tracked_pdf(f, pages, out, stem)
+            if info["status"] == "detected":
+                print(f"  NOTE: tracked changes detected (izlenen değişiklik algılandı): {info['deleted']} deleted, {info['added']} added run(s); "
+                      f"register rules from {stem}.current.txt, details in {stem}.changes.json"
+                      + (f"; {info['unremoved']} deletion(s) NOT removed from the current text: check them" if info["unremoved"] else ""))
+            elif info["status"] == "suspected":
+                print(f"  NOTE: {info['suspected']} red/grey run(s) may be deleted text (nothing removed): check them, see {stem}.changes.json")
+            elif info["status"] == "not-run":
+                print(f"  NOTE: tracked-change detection NOT run: {info['reason']}")
             if a.tables:
                 tb = pdf_tables(f, pages)
                 meta["tables"] = {k: v for k, v in tb.items() if k not in ("tables", "rows")}

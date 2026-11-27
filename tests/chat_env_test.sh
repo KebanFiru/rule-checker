@@ -23,7 +23,7 @@ for i in "${IMAGES[@]}"; do for e in "${ENGINES[@]}"; do
   d="$OUT/${i}_$e"; mkdir -p "$d"
   docker run $FLAGS -e ENGINE=$e -v "$REPO":/skill:ro,z -v "$REPO/$d":/work:z -w /work "rule-check:$i" bash /skill/tests/run_deterministic.sh /work > "$d.log" 2>&1
   status=$?; bash "$REPO/tests/assert_clean.sh" "$d.log" >/dev/null || { echo "  !! $i/$e: failure markers in $d.log"; rc=1; }; [ $status -eq 0 ] || rc=1
-  printf '%-22s exit=%s  scenario summaries FULL: %s/3  ✗ lines: %s  DOCX visual: %s\n' "$i/$e" $status "$(grep -c 'SUMMARY: FULL' "$d.log")" "$(grep -c '✗' "$d.log")" "$(grep -E 'Visual pass: DOCX|visual pass skipped' "$d.log" | head -1 | cut -c1-70)"
+  printf '%-22s exit=%s  scenario summaries FULL: %s/4  ✗ lines: %s  DOCX visual: %s\n' "$i/$e" $status "$(grep -c 'SUMMARY: FULL' "$d.log")" "$(grep -c '✗' "$d.log")" "$(grep -E 'Visual pass: DOCX|visual pass skipped' "$d.log" | head -1 | cut -c1-70)"
 done; done
 cmp() { echo; echo "== $1 vs $2 =="; python3 tests/compare_runs.py "$OUT/$1" "$OUT/$2" --log-a "$OUT/$1.log" --log-b "$OUT/$2.log" || rc=1; }
 cmp chat-env_pdftotext chat-env-v2_pdftotext
@@ -43,5 +43,7 @@ for d in sorted(pathlib.Path("tests/_out").iterdir()):
     if d.is_dir() and not d.name.startswith("lo_pdfs"):
         n, k = engine_warnings(d); print(f"  {d.name:24s} PDFs checked: {n:2d}  disagreement warnings: {k}")
 PY
+echo; echo "== PDF tracked-change detection (pdfplumber image) =="
+bash tests/tracked_test.sh "$OUT/tracked" || rc=1
 echo; [ $rc -eq 0 ] && echo "RESULT: all checks passed" || echo "RESULT: FAILURES (see above)"
 exit $rc

@@ -14,7 +14,7 @@ and judge them with `matrix.py set-bulk work/self_results.json …`. verify: see
 import argparse, json, re, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
-from id_index import parse_lines
+from id_index import parse_lines, doc_stem
 import section_inventory, progress
 
 CLASSES = ("self-rules", "not-rules")
@@ -35,7 +35,7 @@ def definitions(lines, extra=()):
 
 
 def scan(path, extra=()):
-    lines = list(parse_lines(path)); doc = Path(path).stem
+    lines = list(parse_lines(path)); doc = doc_stem(path)
     order = {loc: i for i, (loc, _) in enumerate(lines)}
     defs = definitions(lines)
     found, covered = [], set()
@@ -98,7 +98,7 @@ def cmd_scan(a):
         if c["id"] in old and old[c["id"]].get("class"):
             c["class"], c["reason"] = old[c["id"]]["class"], old[c["id"]].get("reason", "")
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"doc": Path(a.target).stem, "candidates": found}, ensure_ascii=False, indent=1), encoding="utf-8")
+    out.write_text(json.dumps({"doc": doc_stem(a.target), "candidates": found}, ensure_ascii=False, indent=1), encoding="utf-8")
     for c in found:
         print(f"{c['id']:<34} {c['kind']:<8} {c['loc']:<8} ids={','.join(c['ids'][:12]) or '(none: read the section)'}  «{c['title'][:50]}»  {c['class'] or '(classify)'}")
     print(f"{len(found)} candidate(s) for the target's own rules -> {out}" + ("" if found else " (check the table of contents: none detected)"))

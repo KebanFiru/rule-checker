@@ -12,7 +12,11 @@ Each step has its own detail file: when you START a step, read ONLY that file, o
 ```bash
 S=<skill-dir>/scripts    # <skill-dir> contains this SKILL.md. Set once, use in every command below; plain python3, never pip install
 ```
-When resuming (new session or summarized context) run FIRST:
+A NEW run starts with this, before anything else (add `--fresh` when the user says "from scratch" / "sıfırdan": earlier work files and `.rule-check/` are then NOT read):
+```bash
+python3 $S/progress.py start work/progress.json [--fresh]
+```
+When resuming the SAME run (new session or summarized context) do not run `start`; run FIRST:
 ```bash
 python3 $S/progress.py show work/progress.json
 python3 $S/matrix.py status work/rules.json work/results.json
@@ -27,7 +31,7 @@ A step you cannot do: `python3 $S/progress.py step work/progress.json <step> ski
 python3 $S/env_check.py --json work/env.json
 ```
 
-**0. Classify + identity** — target / reference (note immutable ones) / review; ask if unsure. Match EVERY document name the user used; if one is not a file, ASK (else the note goes to the top of the report).
+**0. Classify + identity** — target / reference (note immutable ones) / review; ask if unsure. Match EVERY document name the user used; if one is not a file, ASK (else the note goes to the top of the report). If `extract.py` reports tracked changes (izlenen değişiklik), read `<stem>.current.txt`, never the deleted text.
 ▶ On starting this step read only: `reference/steps/0-identify.md`
 ```bash
 python3 $S/extract.py target.pdf ref.pdf [ref2.pdf …] [review.docx] [--docx-source target.docx] [--tables] [--reading-order] -o work/ex
@@ -98,7 +102,7 @@ python3 $S/matrix.py verify work/rules.json work/report.md      # must exit 0
 ▶ On starting this step read only: `reference/steps/8-fixes.md`
 
 ## Process model + regression check
-On every run, FIRST read `.rule-check/<document>/process_model.yaml` and `invariants.yaml` if they exist.
+On every run, FIRST read `.rule-check/<document>/process_model.yaml` and `invariants.yaml` if they exist (NOT in a from-scratch run).
 ▶ Before building the model (A) read only `reference/steps/process-model.md`; before updating (B) or fixing a document (C) also `reference/steps/process-model-update.md`.
 ```bash
 python3 $S/model_check.py check <model> --rules <rules.json>

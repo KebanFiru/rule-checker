@@ -30,6 +30,7 @@ import argparse, csv, json, re, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import progress
+from id_index import parse_lines, doc_stem
 
 VALID = ["✅", "❌", "⚠️", "➖", "❓", "⚖️"]
 # stop words for keyword extraction (English + Turkish)
@@ -54,13 +55,7 @@ def keywords(rule):
 
 
 def load_lines(files):
-    out = []
-    for f in files:
-        for raw in Path(f).read_text(encoding="utf-8").splitlines():
-            if "\t" in raw:
-                loc, t = raw.split("\t", 1)
-                out.append((Path(f).stem, loc, t))
-    return out
+    return [(doc_stem(f), loc, t) for f in files for loc, t in parse_lines(f)]
 
 
 def cmd_skeleton(a):
@@ -90,6 +85,7 @@ def cmd_skeleton(a):
 
 
 def cmd_set_bulk(a):
+    progress.ensure_run(Path(a.results).parent)          # earlier results are noted BEFORE anything is written over them
     res = json.loads(Path(a.results).read_text(encoding="utf-8")) if Path(a.results).exists() else {}
     part = json.loads(Path(a.part).read_text(encoding="utf-8"))
     bad = []
@@ -123,6 +119,18 @@ def cmd_status(a):
 def cell(s): return str(s or "").replace("|", "¦").replace("\n", " ")
 
 
+def joined(rows, get, labelled=False):
+    """One table cell for the rows of a root finding: each distinct value once; with `labelled`, differing values name their rows."""
+    by = {}
+    for x in rows:
+        value = cell(get(x))
+        if value:
+            by.setdefault(value, []).append(x[0])
+    if not labelled or len(by) <= 1:
+        return "; ".join(by)
+    return "; ".join(f"{', '.join(ids)}: {value}" for value, ids in by.items())
+
+
 def judgement_own(work):
     import judgement, prefixes
     return judgement.Own(prefixes.load(work)[0])
@@ -134,7 +142,7 @@ def cmd_coverage(a):
     res = json.loads(Path(a.results).read_text(encoding="utf-8"))
     g = gates.collect(a.work or Path(a.rules).parent, rules, res, a.env, a.patterns)
     cnt = {k: 0 for k in VALID}; L = ["| Rule | Source | Result | Evidence / Reason |", "|---|---|---|---|"]
-    viol = []
+    viol = {}
     for r in rules:
         v = res.get(r["id"])
         if not v:
@@ -144,14 +152,23 @@ def cmd_coverage(a):
         if r["id"] in g["assumed"]: srcs += f" {gates.ASSUMPTION}"
         L.append(f"| {r['id']} | {cell(srcs)} | {sym} | {cell(v['evidence'])} |")
         if sym in ("❌", "⚠️"):
-            viol.append((r, v, sym, srcs))
+            viol[r["id"]] = (v, sym, srcs)
+    for r, v, sym, srcs in gates.own_violations(a.work or Path(a.rules).parent):
+        viol[r["id"]] = (v, sym, srcs)
     own = judgement_own(a.work or Path(a.rules).parent)
     nf = sum(1 for r in rules if own.is_fact(r))
     total = f"Total rules: {len(rules) - nf}" + (f", facts: {nf}" if nf else "")
     head = [f"{total} — " + ", ".join(f"{k} {n}" for k, n in cnt.items()), ""]
-    V = ["", "| # | Rule | Source | Target location | Issue | Suggested fix | Severity |", "|---|---|---|---|---|---|---|"]
-    for n, (r, v, sym, srcs) in enumerate(viol, 1):
-        V.append(f"| {n} | {r['id']} {sym} | {cell(srcs)} | {cell(v.get('target_loc'))} | {cell(v.get('issue') or v['evidence'])} | {cell(v.get('fix'))} | {cell(v.get('severity'))} |")
+    V = ["", "One line per root finding.", "", "| # | Root finding → rows | Result | Source | Target location | Issue | Suggested fix | Severity |", "|---|---|---|---|---|---|---|---|"]
+    for n, root in enumerate(g["roots"], 1):
+        rows = [(i, *viol[i]) for i in root["rows"]]
+        V.append(f"| {n} | {root['label']} | " + " | ".join([
+            " ".join(f"{k}×{c}" if c > 1 else k for k in ("❌", "⚠️") if (c := sum(1 for x in rows if x[2] == k))),
+            joined(rows, lambda x: x[3]), joined(rows, lambda x: x[1].get("target_loc")),
+            joined(rows, lambda x: x[1].get("issue") or x[1].get("evidence"), True),
+            joined(rows, lambda x: x[1].get("fix"), True), joined(rows, lambda x: x[1].get("severity"))]) + " |")
+    if g["warnings"]:
+        Path(a.work or Path(a.rules).parent, "judgement_warnings.txt").write_text("\n".join(g["warnings"]) + "\n", encoding="utf-8")
     extra = []
     if a.visual:
         extra += ["## Visual pass", json.loads(Path(a.visual).read_text(encoding="utf-8"))["line"], ""]
@@ -159,7 +176,7 @@ def cmd_coverage(a):
         extra += json.loads(Path(a.env).read_text(encoding="utf-8"))["md"].rstrip("\n").splitlines() + [""]
     out = "\n".join(["## Coverage summary", *g["summary"], "", "## Summary", *head, *extra, *g["sections"], "## Coverage table", *L, "", "## Violations", *V]) + "\n"
     Path(a.out).write_text(out, encoding="utf-8")
-    print(f"{a.out}: {len(L) - 2} coverage rows, {len(viol)} violations/partial")
+    print(f"{a.out}: {len(L) - 2} coverage rows, {len(viol)} violations/partial in {len(g['roots'])} root findings")
 
 
 def cmd_verify(a):
@@ -189,6 +206,7 @@ def cmd_verify(a):
     err += verify_gates(a, rules, text, rows)
     if err:
         print("VERIFICATION FAILED — not finished:\n  " + "\n  ".join(err)); sys.exit(1)
+    progress.finish(a.work or Path(a.rules).parent)
     print(f"VERIFICATION OK: {len(got)}/{len(ids)} rules, one row each, result+evidence filled")
 
 
