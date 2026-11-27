@@ -22,7 +22,11 @@ A 14-page target with 6 screens (the screens on pages 11 and 13 contradict the b
 stated three times with one deviation, an AS-IS reference paragraph with "must" and a fact conflict, and a prompt naming "Ek B"
 that exists only as the target's own Appendix B. `score_coverage.py` also runs negative checks: `verify` must reject unopened pages,
 unclassified sections, missing verdicts, a removed identity note and stale summaries; it also unit-checks number/unit and caption
-recognition (English and Turkish), the process-model comparison and the counting of an incomplete inventory. Regenerate fixtures with
+recognition (English and Turkish), the process-model comparison and the counting of an incomplete inventory.
+The judgement checks are exercised the same way: two required contact details the target lacks (aggregate row R-007 with members),
+a payment term the reference states twice (⚖️), an absent open-question fact (F-003), evidence moved to the wrong row, broken
+references, the fix wordings that forbid ❌, unbound contradictions and the self-audit. R-003 and F-001 in `run3/` were reworded or
+reclassified (F-001 is now ⚖️) to satisfy the new verdict rules. `audit_part.json` in `run/` and `run3/` are model-written notes. Regenerate fixtures with
 `RULE_CHECK_TARGET=test ../dev/run.sh python /skill/tests/make_fixtures_coverage.py fixtures/coverage`. The visual findings,
 classifications and results in `run3/` are model judgements by the session that wrote the key (contaminated); no blind run yet.
 

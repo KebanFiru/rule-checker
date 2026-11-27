@@ -6,6 +6,7 @@ deterministic PNGs make a re-run reproduce the same files.
   target_ui.pdf   14 pages: 6 screens (S-1.1..S-1.6); the screens on pages 11 and 13 contradict the body text (date, amount);
                   one data-model drawing (vector only, page 10); the reminder period stated 3 times, once differently; its own Appendix B
   ref_policy.pdf  requirements, an AS-IS paragraph that says "must" and contains a fact the target contradicts, descriptive sections
+                  two required contact details the target lacks, and a payment term the reference gives twice with different values
   prompt.txt      the user names "Ek B", which is not provided as a file
   expected.json   answer key
 """
@@ -110,7 +111,11 @@ ref = [head("Exchange Portal Policy"), para("This policy is the reference for th
        head("3. Current situation (AS-IS)"),
        para("Today the paperwork travels by e-mail. The confirmation fee is collected by the Finance Office, and the student must keep the receipt."),
        head("4. Open questions"), para("It is not yet decided who answers questions outside office hours."),
-       head("Appendix A Contacts"), para("The project team can be reached through the department office.")]
+       head("Appendix A Contacts"), para("The project team can be reached through the department office."),
+       head("5. Coordinator contact details"), para("The profile screen shall show the e-mail address of the coordinator."),
+       para("The profile screen shall show the office room of the coordinator."),
+       head("6. Payment term"), para("The payment is due within 10 days of the confirmation."),
+       para("The payment is due within 14 days of the confirmation.")]
 SimpleDocTemplate(str(OUT / "ref_policy.pdf"), pagesize=A4, invariant=1).build(ref)
 (OUT / "prompt.txt").write_text("Check target_ui.pdf against ref_policy.pdf and Ek B (the fee table).\n", encoding="utf-8")
 exp = {"pages": 14, "screen_pages": [p for p, *_ in SCREENS.values()], "data_model_page": 10,

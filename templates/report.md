@@ -10,7 +10,7 @@
 (rules, facts, reference sections classified A/B, visual pages C/D, parameter conflicts E, document identity notes, skipped checks with reason and count)
 
 ## Summary
-Total rules: N, facts: M — ✅ a, ❌ b, ⚠️ c, ➖ d, ❓ e
+Total rules: N, facts: M — ✅ a, ❌ b, ⚠️ c, ➖ d, ❓ e, ⚖️ f
 
 ## Visual pass
 (`Visual pass: DOCX→PDF (LibreOffice …)`, `Visual pass: PDF pages read with the Read tool`, or `⏭️ visual pass skipped (<reason>)`; `matrix.py coverage --visual` writes this line for DOCX targets)
@@ -28,6 +28,22 @@ Visual coverage: X/Y pages (skipped and open pages listed)
 ## Parameter conflicts (internal-consistency candidates)
 | Conflict | Kind | Target | Reference | Model | Verdict | Note |
 |---|---|---|---|---|---|---|
+
+## Reference conflicts / team decisions
+| Rule | Evidence | Decision needed |
+|---|---|---|
+
+## Open decisions (TBD)
+(from `work/tbd.json`)
+
+## Internal findings bound to rules
+| Finding | IDs | Rules | Text |
+|---|---|---|---|
+
+## Changed in self-audit (öz-denetimde değişti)
+- R-0xx: ❌ → ⚠️ (reason)
+
+## Judgement warnings (check each one)
 
 ## Violations
 | # | Rule | Source (document+page) | Target location (page+ID) | Issue | Suggested fix | Severity |

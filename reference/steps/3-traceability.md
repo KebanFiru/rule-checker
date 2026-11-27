@@ -1,7 +1,9 @@
 # 3. Traceability
 
 Process the rules ONE BY ONE (never in groups); for each, read the whole rule and the relevant part of the target side by side and give ONE result:
-✅ Compliant (evidence: page/ID in target) | ❌ Violation | ⚠️ Partial | ➖ Not applicable (reason) | ❓ Cannot verify (what is missing)
+✅ Compliant (evidence: page/ID in target) | ❌ Violation | ⚠️ Partial | ➖ Not applicable (reason) | ❓ Cannot verify (what is missing) | ⚖️ Reference contradiction / team decision
+
+`verify` enforces these; read `3-verdicts.md` before recording the first block.
 
 Work in **blocks of 20** rules. Get the candidates of a whole block with one command (`search.py … --rules work/rules.json --block N`, or `--all-blocks` once) and read `work/candidates_part_NN.md`; collect further search terms and run them in ONE `search.py -t … -t …` call instead of one grep per term. After each block write the part as JSON and record it (checkpoint; work can resume even if the context fills up):
 ```json

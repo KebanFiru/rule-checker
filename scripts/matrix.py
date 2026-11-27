@@ -14,15 +14,23 @@ Alt komutlar:
                                                                of rules.json; see gates.py)
 Facts (F-001 …, "kind": "fact") live in the same register and get the same result symbols as rules.
 
-Result values: ✅ ❌ ⚠️ ➖ ❓ ; evidence is required for ✅/❌/⚠️, the reason for ➖, and what is missing for ❓.
-results.json fields: result, evidence, [target_loc, issue, fix, severity]
+Result values: ✅ ❌ ⚠️ ➖ ❓ ⚖️ ; evidence is required for ✅/❌/⚠️/⚖️, the reason for ➖, and what is missing for ❓.
+⚖️ = reference contradiction / team decision (never ❌ when the target needs no change); it cites TBD-n from tbd.json.
+results.json fields: result, evidence, [target_loc, issue, fix (required for ❌), severity, members (aggregate findings)]
+
+  audit-plan rules.json results.json [-o self_audit.json]      self-audit: every ❌/⚠️/⚖️ row plus 10% of ✅ (deterministic selection)
+  audit-record rules.json results.json self_audit.json part.json
+                                                               part: {"R-001": {"source": "what was re-read", "note": "why it changed"}};
+                                                               change a verdict with set-bulk BEFORE recording it
+verify also checks the judgements (judgement.py): aggregate members, ➖ on absent items, references, verdict types, internal
+findings, self-audit; it reads results.json next to rules.json (--results) and id_patterns.json in the work folder (--patterns).
 """
 import argparse, csv, json, re, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import progress
 
-VALID = ["✅", "❌", "⚠️", "➖", "❓"]
+VALID = ["✅", "❌", "⚠️", "➖", "❓", "⚖️"]
 # stop words for keyword extraction (English + Turkish)
 STOP = set("olmalıdır olmalı gerekir gerekli için ile veya olan olarak bir bu şu the and for must shall should with that this from have been are not".split())
 
@@ -89,6 +97,8 @@ def cmd_set_bulk(a):
             bad.append(f"{rid}: invalid result {v.get('result')!r}"); continue
         if not (v.get("evidence") or "").strip():
             bad.append(f"{rid}: evidence is empty (evidence/reason required)"); continue
+        if norm_res(v.get("result")) == "❌" and not str(v.get("fix", "")).strip():
+            bad.append(f"{rid}: a ❌ result needs a fix"); continue
         res[rid] = v
     Path(a.results).write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
     ok = [r for r in part if r in res and res[r] is part[r]]
@@ -115,8 +125,8 @@ def cell(s): return str(s or "").replace("|", "¦").replace("\n", " ")
 def cmd_coverage(a):
     import gates
     rules = load_rules(a.rules)
-    g = gates.collect(a.work or Path(a.rules).parent, rules, a.env)
     res = json.loads(Path(a.results).read_text(encoding="utf-8"))
+    g = gates.collect(a.work or Path(a.rules).parent, rules, res, a.env, a.patterns)
     cnt = {k: 0 for k in VALID}; L = ["| Rule | Source | Result | Evidence / Reason |", "|---|---|---|---|"]
     viol = []
     for r in rules:
@@ -174,13 +184,59 @@ def cmd_verify(a):
     print(f"VERIFICATION OK: {len(got)}/{len(ids)} rules, one row each, result+evidence filled")
 
 
+def cmd_audit_plan(a):
+    import judgement
+    rules = load_rules(a.rules); res = json.loads(Path(a.results).read_text(encoding="utf-8"))
+    out = Path(a.out or Path(a.results).parent / "self_audit.json")
+    old = json.loads(out.read_text(encoding="utf-8")) if out.exists() else None
+    audit = judgement.audit_plan(rules, res, old)
+    out.write_text(json.dumps(audit, ensure_ascii=False, indent=1), encoding="utf-8")
+    todo = [i for i in audit["planned"] if i not in audit["checks"]]
+    print(f"self-audit: {len(audit['planned'])} rows to re-check against the source, {len(todo)} open -> {out}")
+    for i in todo:
+        r = next(r for r in rules if r["id"] == i); src = r.get("source", {})
+        print(f"  {i} {res.get(i, {}).get('result', '(no result)')}  source {src.get('doc', '')} p{src.get('page', '')} | evidence: {res.get(i, {}).get('evidence', '')[:100]}")
+
+
+def cmd_audit_record(a):
+    import judgement
+    rules = load_rules(a.rules); res = json.loads(Path(a.results).read_text(encoding="utf-8"))
+    audit = json.loads(Path(a.audit).read_text(encoding="utf-8")); part = json.loads(Path(a.part).read_text(encoding="utf-8"))
+    bad, done = [], []
+    for rid, c in part.items():
+        if rid not in res:
+            bad.append(f"{rid}: no result for this row"); continue
+        if not str(c.get("source", "")).strip():
+            bad.append(f"{rid}: 'source' must say what was re-read"); continue
+        if audit["snapshot"].get(rid, judgement.sym(res[rid])) != judgement.sym(res[rid]) and not str(c.get("note", "")).strip():
+            bad.append(f"{rid}: the verdict changed, 'note' must say why"); continue
+        audit["snapshot"].setdefault(rid, judgement.sym(res[rid]))
+        audit["checks"][rid] = {"source": c["source"], "note": c.get("note", ""), "row": judgement.row_hash(res[rid])}; done.append(rid)
+    audit["planned"] = judgement.planned(rules, res, audit)
+    Path(a.audit).write_text(json.dumps(audit, ensure_ascii=False, indent=1), encoding="utf-8")
+    progress.checkpoint(Path(a.audit).parent, "audited", done)
+    _, need, ok, changed = judgement.check_audit(rules, res, audit)
+    print(f"{len(done)} recorded; re-checked {len(ok)}/{len(need)} planned rows; verdicts changed: {len(changed)}")
+    for line in changed: print("  " + line)
+    if bad:
+        print("REJECTED:\n  " + "\n  ".join(bad)); sys.exit(1)
+
+
 def verify_gates(a, rules, text, rows):
     """The generated summary is always required (first, current: steps not run show as NOT RUN and are counted); gate errors apply to
     the steps that were run; rows resting on the target carry the assumption mark."""
     import gates
     work = Path(a.work or Path(a.rules).parent)
-    g = gates.collect(work, rules, a.env)
+    path = Path(a.results or work / "results.json")
+    if not path.exists():
+        return [f"results file {path} not found: the judgements cannot be checked (--results)"]
+    res = json.loads(path.read_text(encoding="utf-8"))
+    g = gates.collect(work, rules, res, a.env, a.patterns, text)
     err = list(g["errors"])
+    for rid, rest in rows:
+        shown = [norm_res(c.strip()) for c in rest.split("|")[:3]]
+        if rid in res and norm_res(res[rid].get("result")) not in shown:
+            err.append(f"{rid}: the report shows another result than results.json ({res[rid].get('result')}): regenerate the coverage output")
     first = re.search(r"^##[ \t]+(.*)$", text, re.M)
     if not first or not re.match(r"(?i)(coverage summary|kapsam özeti)", first.group(1)):
         err.append("the report must START with the generated «## Coverage summary» section (matrix.py coverage)")
@@ -198,8 +254,10 @@ def main():
     p = sp.add_parser("skeleton"); p.add_argument("rules"); p.add_argument("targets", nargs="+"); p.add_argument("-o", "--out", default="matrix"); p.add_argument("--top", type=int, default=4); p.set_defaults(f=cmd_skeleton)
     p = sp.add_parser("set-bulk"); p.add_argument("results"); p.add_argument("part"); p.set_defaults(f=cmd_set_bulk)
     p = sp.add_parser("status"); p.add_argument("rules"); p.add_argument("results"); p.set_defaults(f=cmd_status)
-    p = sp.add_parser("coverage"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out", default="coverage.md"); p.add_argument("--env"); p.add_argument("--visual"); p.add_argument("--work"); p.set_defaults(f=cmd_coverage)
-    p = sp.add_parser("verify"); p.add_argument("rules"); p.add_argument("report"); p.add_argument("--work"); p.add_argument("--env"); p.set_defaults(f=cmd_verify)
+    p = sp.add_parser("coverage"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out", default="coverage.md"); p.add_argument("--env"); p.add_argument("--visual"); p.add_argument("--work"); p.add_argument("--patterns"); p.set_defaults(f=cmd_coverage)
+    p = sp.add_parser("verify"); p.add_argument("rules"); p.add_argument("report"); p.add_argument("--work"); p.add_argument("--env"); p.add_argument("--results"); p.add_argument("--patterns"); p.set_defaults(f=cmd_verify)
+    p = sp.add_parser("audit-plan"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("-o", "--out"); p.set_defaults(f=cmd_audit_plan)
+    p = sp.add_parser("audit-record"); p.add_argument("rules"); p.add_argument("results"); p.add_argument("audit"); p.add_argument("part"); p.set_defaults(f=cmd_audit_record)
     a = ap.parse_args(); a.f(a)
 
 

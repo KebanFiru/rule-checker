@@ -19,6 +19,8 @@ sc matrix.py skeleton s1/rules.json s1/ex/target_srs.txt -o s1/matrix
 cp "$S1/part_01.json" "$S1/part_02.json" "$S1/internal.md" "$S1/per_person.md" s1/
 sc matrix.py set-bulk s1/results.json s1/part_01.json >/dev/null
 sc matrix.py set-bulk s1/results.json s1/part_02.json
+sc matrix.py audit-plan s1/rules.json s1/results.json | head -1
+sc matrix.py audit-record s1/rules.json s1/results.json s1/self_audit.json "$S1/audit_part.json"
 sc matrix.py status s1/rules.json s1/results.json
 sc matrix.py coverage s1/rules.json s1/results.json -o s1/coverage.md
 { printf '# Rule Check Report\n**Target:** target_srs.pdf  **Reference:** rules.pdf  **Review:** review.docx (2 people, 8 comments, 2 tracked changes)\n**Classification:** test scenario, no question to the user needed. No immutable document.\n\n'; cat s1/coverage.md; echo; cat s1/internal.md; } > s1/report.md
@@ -71,6 +73,10 @@ sc param_check.py verdict s3/param_verdicts.json "$S3/param_part.json"
 cp "$S3/rules.json" "$S3/internal.md" s3/
 sc search.py s3/ex/target_ui.txt --rules s3/rules.json --all-blocks
 sc matrix.py set-bulk s3/results.json "$S3/part_01.json"
+cp "$S3/tbd.json" "$S3/internal.json" s3/
+sc matrix.py audit-plan s3/rules.json s3/results.json | head -1
+sc matrix.py set-bulk s3/results.json "$S3/audit_change.json" | tail -1
+sc matrix.py audit-record s3/rules.json s3/results.json s3/self_audit.json "$S3/audit_part.json"
 sc matrix.py coverage s3/rules.json s3/results.json -o s3/coverage.md
 { printf '# Rule Check Report\n**Target:** target_ui.pdf  **Reference:** ref_policy.pdf, "Ek B"\n\n'; cat s3/coverage.md; echo; cat s3/internal.md; } > s3/report.md
 sc matrix.py verify s3/rules.json s3/report.md

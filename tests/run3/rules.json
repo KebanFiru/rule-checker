@@ -59,6 +59,82 @@
    ]
   },
   {
+   "id": "R-005",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#5",
+    "quote": "The profile screen shall show the e-mail address of the coordinator"
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "keywords": [
+    "e-mail",
+    "address"
+   ]
+  },
+  {
+   "id": "R-006",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#5",
+    "quote": "The profile screen shall show the office room of the coordinator"
+   },
+   "type": "required content",
+   "scope": "whole document",
+   "keywords": [
+    "office room",
+    "room"
+   ]
+  },
+  {
+   "id": "R-007",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#5",
+    "quote": "Coordinator contact details"
+   },
+   "type": "template section",
+   "scope": "whole document",
+   "keywords": [
+    "contact",
+    "details"
+   ],
+   "interpretation": "aggregate over section 5"
+  },
+  {
+   "id": "R-008",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#6",
+    "quote": "The payment is due within 10 days of the confirmation"
+   },
+   "type": "numeric value",
+   "scope": "whole document",
+   "keywords": [
+    "due",
+    "10 days"
+   ]
+  },
+  {
+   "id": "R-009",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#6",
+    "quote": "The payment is due within 14 days of the confirmation"
+   },
+   "type": "numeric value",
+   "scope": "whole document",
+   "keywords": [
+    "due",
+    "14 days"
+   ]
+  },
+  {
    "id": "F-001",
    "kind": "fact",
    "source": {
@@ -88,6 +164,22 @@
    "keywords": [
     "receipt"
    ]
+  },
+  {
+   "id": "F-003",
+   "source": {
+    "doc": "ref_policy.pdf",
+    "page": 1,
+    "section": "ref_policy#4",
+    "quote": "It is not yet decided who answers questions outside office hours"
+   },
+   "type": "process order",
+   "scope": "whole document",
+   "keywords": [
+    "office hours",
+    "answers"
+   ],
+   "kind": "fact"
   }
  ]
 }

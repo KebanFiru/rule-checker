@@ -1,7 +1,8 @@
 {
   "_comment": "ID patterns (regex). Edit/extend per document. Each pattern must capture exactly one full ID. English and Turkish labels (Table/Tablo, Figure/Şekil) are both supported.",
   "patterns": [
-    {"name": "UC",    "regex": "\\bUC-\\d+(?:\\.\\d+)*\\b"},
+    {"name": "UC",    "regex": "\\bUC-\\d+(?:\\.\\d+|\\.(?:EX|AF|ALT|E|A)(?=\\.\\d))*\\b"},
+    {"name": "IC",    "regex": "\\bIC-\\d+\\b"},
     {"name": "QR",    "regex": "\\bQR-[A-Z]\\.\\d+\\b"},
     {"name": "FR",    "regex": "\\bFR-\\d+(?:\\.\\d+)*\\b"},
     {"name": "NFR",   "regex": "\\bNFR-\\d+(?:\\.\\d+)*\\b"},

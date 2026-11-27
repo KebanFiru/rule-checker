@@ -1,0 +1,10 @@
+{
+ "R-001": {
+  "result": "⚠️",
+  "evidence": "p3 FR-1 and p6 UC-1.1: reminder after 5 days; p9 QR-A.1: 7 days (IC-1)",
+  "target_loc": "p9 QR-A.1",
+  "issue": "The same student reminder is given as 7 days",
+  "fix": "Write 5 days in QR-A.1",
+  "severity": "medium"
+ }
+}

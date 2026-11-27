@@ -26,5 +26,13 @@
  "target_ui#Appendix B": {
   "class": "rule-bearing",
   "reason": ""
+ },
+ "ref_policy#5": {
+  "class": "rule-bearing",
+  "reason": ""
+ },
+ "ref_policy#6": {
+  "class": "rule-bearing",
+  "reason": ""
  }
 }

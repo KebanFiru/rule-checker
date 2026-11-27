@@ -1,0 +1,30 @@
+{
+ "R-001": {
+  "source": "re-read p3 FR-1, p6 UC-1.1, p9 QR-A.1; ref_policy section 2",
+  "note": "two places comply and one does not: partial, not a full violation"
+ },
+ "R-002": {
+  "source": "re-read p3 FR-2, p13 S-1.6"
+ },
+ "R-003": {
+  "source": "re-read p13 screen and body, p14 Appendix B table"
+ },
+ "R-005": {
+  "source": "re-read p12 S-1.5; ref_policy section 5"
+ },
+ "R-006": {
+  "source": "re-read p12 S-1.5; ref_policy section 5"
+ },
+ "R-007": {
+  "source": "re-read p12 S-1.5; ref_policy section 5"
+ },
+ "R-008": {
+  "source": "re-read ref_policy section 6"
+ },
+ "R-009": {
+  "source": "re-read ref_policy section 6"
+ },
+ "F-001": {
+  "source": "re-read p3 FR-3; ref_policy section 3"
+ }
+}

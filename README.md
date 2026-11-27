@@ -7,7 +7,7 @@ A [Claude Code](https://claude.com/claude-code) skill that checks one or more **
 Asked to "check this document against that rules PDF", a model tends to find a few obvious problems and then finds new ones in every following round. `rule-check` removes that failure mode with three mechanisms:
 
 1. **Rule register** – every checkable statement of the references becomes a numbered, atomic rule (`R-001…`) with source document, page and quote.
-2. **Traceability + one result per rule** – each rule is checked on its own and gets exactly one result with evidence: ✅ compliant · ❌ violation · ⚠️ partial · ➖ not applicable · ❓ cannot verify.
+2. **Traceability + one result per rule** – each rule is checked on its own and gets exactly one result with evidence: ✅ compliant · ❌ violation · ⚠️ partial · ➖ not applicable · ❓ cannot verify · ⚖️ reference contradiction / team decision.
 3. **Coverage verification** – `matrix.py verify` fails unless the report's coverage table has exactly one filled row per rule. The job is not finished until it passes.
 
 **Nothing is skipped silently.** The report starts with a coverage summary, and `verify` fails if
@@ -15,7 +15,10 @@ Asked to "check this document against that rules PDF", a model tends to find a f
 - a page with a screenshot, diagram or table was neither looked at nor skipped with a stated reason,
 - a section of a reference was not classified (rules, facts to check, open question, or descriptive with a reason),
 - a conflicting duration or amount was left without a verdict,
-- a document you named was replaced by a section of the target without saying so.
+- a document you named was replaced by a section of the target without saying so,
+- a "section X is missing" finding hides the single missing items, or an absent open question is marked "not applicable",
+- evidence points to a rule or decision that does not exist, a ❌ needs no change, or a contradiction inside the target is not written on the rules it concerns,
+- the final self-audit (every finding and 10% of the compliant rows, re-read against the source) is unfinished.
 
 On top of that, deterministic scripts do what a model should not do by eye (text extraction with page/line numbers, cross-reference and ID checks, number/unit consistency, document diffs), and the model looks at page images for what text extraction cannot see (screenshots, figures).
 
@@ -80,6 +83,7 @@ All are standard-library Python; run them as `python3 scripts/<name>.py …` (se
 | `section_inventory.py` | reference section structure and classification; matches the documents the user named to files |
 | `param_check.py`, `param_concepts.json` | number+unit values (English and Turkish) per concept; conflicts with the references and the process model |
 | `search.py` | many terms, or the candidates of 20 rules, in one call |
+| `judgement.py` | checks on the verdicts themselves, self-audit selection (used by `matrix.py`) |
 | `progress.py` | `work/progress.json`, to resume long runs |
 | `model_check.py` | process-model validation, invariant checks (model and document), Mermaid output, version `bump` |
 | `doc_diff.py`, `impact.py` | section/ID-level diff between two versions (format noise separated); impact of changes on model nodes, parameters, rules and invariants |
@@ -97,6 +101,7 @@ The processes of a document (steps, actors, order, conditions, durations, except
 - Table detection is layout-based unless pdfplumber is available.
 - On multi-column pages the default layout mode interleaves columns; use `extract.py --reading-order`.
 - The visual pass depends on Claude reading page images; for DOCX it needs LibreOffice or a PDF export. `verify` checks that every inventory page has a log row, not that the model looked carefully.
+- Evidence-fit, aggregate wording and "which rules does this contradiction concern" are heuristics that only warn; an aggregate written without its member list can go unnoticed.
 - Visual inventory, section detection and parameter binding are heuristics: images need pypdf, headings must look like headings, and spelled-out numbers are recognised only up to twelve.
 - Heuristics (ID definition vs reference, number/unit concepts) can produce false positives; `SKILL.md` requires verifying each finding in the document.
 - Verified on synthetic documents only; check it on your own PDFs before relying on it (an extraction disagreement shows up as a warning).

@@ -1,0 +1,44 @@
+{
+ "R-002": {
+  "source": "re-read target_srs: p1:L2"
+ },
+ "R-004": {
+  "source": "re-read target_srs: p1:L4"
+ },
+ "R-006": {
+  "source": "re-read target_srs: all headings p1:L9, L11, L13, L26, p2:L1, L4; no 'scope' in the text"
+ },
+ "R-009": {
+  "source": "re-read target_srs: p1:L27-33"
+ },
+ "R-010": {
+  "source": "re-read target_srs: p1:L18"
+ },
+ "R-011": {
+  "source": "re-read target_srs: p1:L19-20"
+ },
+ "R-012": {
+  "source": "re-read target_srs: p1:L15"
+ },
+ "R-013": {
+  "source": "re-read target_srs: p1:L16"
+ },
+ "R-015": {
+  "source": "re-read target_srs: p1:L33-34"
+ },
+ "R-016": {
+  "source": "re-read target_srs: PDF page 2 viewed: third image has no caption"
+ },
+ "R-017": {
+  "source": "re-read target_srs: p1:L5 and p1:L23"
+ },
+ "R-019": {
+  "source": "re-read target_srs: p1:L21"
+ },
+ "R-020": {
+  "source": "re-read target_srs: p1:L23-25, p2:L3"
+ },
+ "R-022": {
+  "source": "re-read target_srs: p1:L17-18"
+ }
+}

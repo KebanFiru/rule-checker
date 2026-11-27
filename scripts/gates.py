@@ -7,11 +7,12 @@ check cannot be left out by forgetting a flag.
   params.json + param_verdicts.json           parameter conflicts
   doc_identity.json                           documents the user named
   env.json, progress.json                     skipped checks
+  internal.json, tbd.json, self_audit.json    judgement checks (judgement.py)
 """
 import json
 from collections import Counter
 from pathlib import Path
-import visual_inventory, section_inventory, param_check, progress
+import visual_inventory, section_inventory, param_check, progress, judgement
 
 ASSUMPTION = "⚑ source assumption"
 
@@ -29,7 +30,7 @@ def read(work, name):
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
-def collect(work, rules, env_path=None):
+def collect(work, rules, results, env_path=None, patterns=None, report_text=None):
     """{summary: [lines], sections: [markdown lines], required: [lines that must be in the report], errors: [..], assumed: set(rule ids)}"""
     errors, required, sections, skipped, summary = [], [], [], [], []
     facts = [r for r in rules if is_fact(r)]
@@ -116,6 +117,9 @@ def collect(work, rules, env_path=None):
     else:
         summary.append("- Parameter conflicts: NOT RUN (param_check.py scan)"); skipped.append(("parameter consistency", "step not run", 1))
 
+    judged = judgement.collect(work, rules, results, patterns, report_text)
+    errors += judged["errors"]; sections += judged["sections"]; skipped += judged["skipped"]
+
     env = json.loads(Path(env_path).read_text(encoding="utf-8")) if env_path else read(work, "env.json")
     if env:
         skipped += [("environment", u, 1) for u in env.get("unavailable_checks", [])]
@@ -123,5 +127,6 @@ def collect(work, rules, env_path=None):
     skipped += [(f"step {k}", v["reason"], 1) for k, v in prog["steps"].items() if v["state"] == "skipped"]
     summary.append(f"- Skipped checks: {sum(n for *_, n in skipped)}")
     summary += [f"  - {what}: {reason} ({n})" for what, reason, n in skipped]
-    required = summary + required
+    summary += judged["summary"]
+    required = summary + required + judged["required"]
     return {"summary": summary, "sections": sections, "required": required, "errors": errors, "assumed": assumed}

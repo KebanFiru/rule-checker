@@ -14,7 +14,7 @@ from pathlib import Path
 def load(path):
     p = Path(path)
     d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
-    for k, v in (("steps", {}), ("rule_blocks", []), ("visual_pages", []), ("sections", []), ("param_verdicts", [])):
+    for k, v in (("steps", {}), ("rule_blocks", []), ("visual_pages", []), ("sections", []), ("param_verdicts", []), ("audited", [])):
         d.setdefault(k, v)
     return d
 
@@ -52,7 +52,7 @@ def main():
         print(f"step {k}: {v['state']}" + (f" ({v['reason']})" if v["reason"] else ""))
     for b in d["rule_blocks"]:
         print(f"rule block: {b}")
-    for k, label in (("visual_pages", "visual pages recorded"), ("sections", "reference sections classified"), ("param_verdicts", "parameter conflicts judged")):
+    for k, label in (("visual_pages", "visual pages recorded"), ("sections", "reference sections classified"), ("param_verdicts", "parameter conflicts judged"), ("audited", "rows re-checked in the self-audit")):
         if d[k]:
             print(f"{label}: {len(d[k])}: " + ", ".join(map(str, d[k][:40])) + (" …" if len(d[k]) > 40 else ""))
     if not any(d.values()):

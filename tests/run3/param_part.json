@@ -6,5 +6,9 @@
  "P:fee:money": {
   "verdict": "legitimate-difference",
   "note": "p14: 40 € confirmation fee and 10 € late fee are two different fees"
+ },
+ "P:payment:time": {
+  "verdict": "real",
+  "note": "the reference itself says 10 days and 14 days (section 6): team decision TBD-2"
  }
 }

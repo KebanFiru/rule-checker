@@ -7,7 +7,8 @@ import json, shutil, subprocess, sys, tempfile
 from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
-import param_check, section_inventory, visual_inventory
+import param_check, section_inventory, visual_inventory, judgement
+from id_index import load_patterns
 d = Path(sys.argv[1]).resolve(); e = json.loads((REPO / "tests/fixtures/coverage/expected.json").read_text(encoding="utf-8")); tot = []
 J = lambda n, base=d: json.loads((base / n).read_text(encoding="utf-8"))
 
@@ -37,7 +38,7 @@ line("identity: rows from the target marked as source assumption", sum("source a
 conf = {c["id"]: c for c in J("params.json")["conflicts"]}
 line("parameter: deviating reminder period flagged", conf.get(e["param_conflict"]["id"], {}).get("target_values"), e["param_conflict"]["target_values"])
 line("report starts with the coverage summary", rep.index("## Coverage summary") < rep.index("## Summary") < rep.index("## Coverage table"), True)
-line("search.py candidate file for the rule block", (d / "candidates_part_01.md").read_text(encoding="utf-8").count("\n## "), 6)
+line("search.py candidate file for the rule block", (d / "candidates_part_01.md").read_text(encoding="utf-8").count("\n## "), 12)
 
 
 def broken(name, mutate, expect_text):
@@ -114,4 +115,81 @@ with tempfile.TemporaryDirectory() as t:                      # no new step run 
     (w / "report.md").write_text("# R\n\n## Summary" + body.split("## Summary", 1)[1], encoding="utf-8")
     r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
     line("no gate run, summary removed: rejected", (r.returncode != 0, "must START" in r.stdout), (True, True))
+# ---------- judgement checks (aggregate findings, evidence fit, references, verdict types, internal findings, self-audit) ----------
+line("baseline: no judgement warning on the sample", "- Judgement warnings: 0 " in rep, True)
+line("self-audit: changed verdict listed in the report", "- R-001: ❌ → ⚠️" in rep.split("## Changed in self-audit")[1].split("\n## ")[0], True)
+line("reference contradiction shown as a team decision, not as a violation",
+     ("| R-008 ⚖️ |" in rep.split("## Reference conflicts / team decisions")[1].split("\n## ")[0], "R-008" in rep.split("## Violations")[1].split("\n## ")[0]), (True, False))
+
+
+def reaudit(w):
+    """Re-plan and re-record every row, so the planted defect is the only thing wrong."""
+    run("matrix.py", "audit-plan", "rules.json", "results.json", cwd=w)
+    plan = J("self_audit.json", w)["planned"]
+    (w / "all.json").write_text(json.dumps({i: {"source": "re-read", "note": "test"} for i in plan}), encoding="utf-8")
+    run("matrix.py", "audit-record", "rules.json", "results.json", "self_audit.json", "all.json", cwd=w)
+
+
+def judged(name, mutate, expect, rejected=True, audit=True):
+    """mutate(results, workdir); regenerate the report; verify. expect: texts that must appear in the verify output or the report."""
+    with tempfile.TemporaryDirectory() as t:
+        w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+        res = J("results.json", w); mutate(res, w)
+        (w / "results.json").write_text(json.dumps(res, ensure_ascii=False), encoding="utf-8")
+        if audit: reaudit(w)
+        run("matrix.py", "coverage", "rules.json", "results.json", "-o", "coverage.md", cwd=w)
+        body = (w / "coverage.md").read_text(encoding="utf-8")
+        (w / "report.md").write_text("# R\n\n" + body, encoding="utf-8")
+        r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+        seen = r.stdout if rejected else body
+        missing = [x for x in expect if x not in seen]
+        line(f"judgement check, {name}", (r.returncode != 0, missing), (rejected, []))
+        if missing: print("  output was:", r.stdout[:600])
+
+
+judged("aggregate member without its own finding", lambda r, w: r["R-006"].update(result="✅"), ["R-007: aggregate member R-006 has no ❌/⚠️ row"])
+judged("aggregate member missing from the register", lambda r, w: r["R-007"]["members"].append("R-044"), ["aggregate member R-044 is not in the register"])
+judged("aggregate written without members is warned", lambda r, w: r["R-007"].pop("members"), ["R-007: reads like an aggregate finding"], rejected=False)
+judged("absent open-question fact marked ➖", lambda r, w: r["F-003"].update(result="➖"), ["F-003: ➖ for a fact absent from the target"])
+judged("rule marked ➖ with 'absent' wording is warned", lambda r, w: r["R-004"].update(result="➖", evidence="the late fee is not mentioned outside Appendix B"),
+       ["R-004: ➖ with 'absent' wording"], rejected=False)
+judged("conditional rule that does not apply stays ➖", lambda r, w: r["R-004"].update(result="➖", evidence="the target does not contain any late fee screen, so the rule does not apply"),
+       ["| R-004 |"], rejected=False)
+judged("aggregate member turned into ➖", lambda r, w: r["R-005"].update(result="➖"), ["aggregate member R-005 has no ❌/⚠️ row"])
+moved = J("results.json")["R-002"]["evidence"]
+judged("evidence written on the wrong row is warned", lambda r, w: r["R-001"].update(evidence=moved + " (IC-1)", issue="", target_loc=""),
+       ["R-001: evidence uses none of the rule's keywords", "of R-002's"], rejected=False)
+judged("evidence IDs outside the rule's IDs are warned", lambda r, w: (rewrite(w, "rules.json", lambda x: x["rules"][1].update(scope="screen S-1.2")), None)[1],
+       ["R-002: evidence IDs", "do not overlap the rule's IDs (S-1.2)"], rejected=False)
+judged("broken row reference", lambda r, w: r["R-002"].update(evidence=r["R-002"]["evidence"] + "; see R-099"), ["R-099 is not a row of the register"])
+judged("broken fact reference", lambda r, w: r["R-002"].update(evidence=r["R-002"]["evidence"] + "; see F-9"), ["F-9 is not a row of the register"])
+judged("broken TBD reference", lambda r, w: r["R-008"].update(fix="TBD-9"), ["TBD-9 is not defined in tbd.json"])
+for fix in ("No change needed", "değişiklik yok", "Team decision", "TBD / team decision", "Ekip kararı"):
+    judged(f"❌ with fix «{fix}»", lambda r, w: r["R-005"].update(fix=fix), ["R-005: ❌ with fix"])
+judged("❌ without a fix", lambda r, w: r["R-005"].pop("fix"), ["R-005: a ❌ row needs a fix"])
+judged("⚖️ without a TBD number", lambda r, w: r["R-009"].update(fix="decide", evidence="the reference gives two values"), ["R-009: a ⚖️ row must cite"])
+judged("contradiction not written on the rule's row", lambda r, w: r["R-001"].update(evidence=r["R-001"]["evidence"].replace(" (IC-1)", "")), ["IC-1: it concerns R-001"])
+judged("finding with neither rule nor reason", lambda r, w: rewrite(w, "internal.json", lambda x: x[2].update(no_rule_reason="")), ["IC-3: list the rules"])
+judged("real parameter contradiction not bound", lambda r, w: rewrite(w, "internal.json", lambda x: x[0].pop("param") and None), ["P:reminder:time is a real contradiction"])
+judged("unbound candidate rule is warned", lambda r, w: rewrite(w, "internal.json", lambda x: x[1].update(text=x[1]["text"] + "; the confirmation fee appears before payment")),
+       ["IC-2: may also concern R-002"], rejected=False)
+judged("result changed after the self-audit", lambda r, w: r["R-005"].update(severity="high"), ["R-005 changed after it was re-checked"], audit=False)
+judged("self-audit left out", lambda r, w: (w / "self_audit.json").unlink(), ["self-audit not run"], audit=False)
+judged("new violation not re-checked", lambda r, w: r["R-004"].update(result="⚠️"), ["R-004 not re-checked"], audit=False)
+rules3 = J("rules.json")["rules"]
+line("self-audit selection: deterministic, all findings plus 10% of ✅",
+     (len(judgement.sample([f"R-{i:03d}" for i in range(1, 101)])), judgement.sample(["R-001", "R-002", "R-003"]) == judgement.sample(["R-003", "R-001", "R-002"])), (10, True))
+line("Turkish İ matches in the evidence-fit check", judgement.has_word("itiraz", "İtiraz süresi"), True)
+with tempfile.TemporaryDirectory() as t:                      # an ID of the document itself in the report is not a broken reference
+    w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
+    with open(w / "ex/target_ui.txt", "a", encoding="utf-8") as fh: fh.write("p14:L99\tRisk R-101 supplier delay\n")
+    with open(w / "report.md", "a", encoding="utf-8") as fh: fh.write("\nThe risk R-101 is listed in the target.\n")
+    r = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    with open(w / "report.md", "a", encoding="utf-8") as fh: fh.write("see R-101\n")
+    r2 = run("matrix.py", "verify", "rules.json", "report.md", cwd=w)
+    line("report: document ID accepted, «see R-101» rejected", (r.returncode, r2.returncode != 0, "R-101 is not a row" in r2.stdout), (0, True, True))
+pats, _ = load_patterns()
+line("IDs: use-case exception steps and internal findings", sorted(judgement.ids_in("UC-3.7.EX.2 and UC-3.7.EX.1 vs S-4.1, IC-3. See UC-3.7.", pats)),
+     ["IC-3", "S-4.1", "UC-3.7", "UC-3.7.EX.1", "UC-3.7.EX.2"])
+line("aggregate wording not triggered by a single missing item", bool(judgement.AGGREGATE.search("No Scope section. Headings 1-6 listed; the word does not occur")), False)
 print("\nSUMMARY:", "FULL" if all(tot) else "GAPS")

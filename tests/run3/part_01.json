@@ -1,22 +1,22 @@
 {
  "R-001": {
-  "result": "⚠️",
-  "evidence": "p3 FR-1 and p6 UC-1.1: 5 days; p9 QR-A.1: 7 days",
+  "result": "❌",
+  "evidence": "p3 FR-1 and p6 UC-1.1: reminder after 5 days; p9 QR-A.1: 7 days (IC-1)",
   "target_loc": "p9 QR-A.1",
   "issue": "The same student reminder is given as 7 days",
-  "fix": "TBD / team decision",
+  "fix": "Write 5 days in QR-A.1",
   "severity": "medium"
  },
  "R-002": {
   "result": "✅",
-  "evidence": "p3 FR-2; p13 S-1.6 shows the fee before the Pay button"
+  "evidence": "p3 FR-2 and p13 S-1.6: the confirmation fee is shown before the payment button"
  },
  "R-003": {
   "result": "❌",
-  "evidence": "p13 S-1.6 screen shows 55 €; body p13 and Appendix B p14 show 40 €",
+  "evidence": "p13 S-1.6 screen shows a confirmation fee of 55 €; body p13 and Appendix B p14 show 40 € (IC-2)",
   "target_loc": "p13 S-1.6",
   "issue": "Screen amount differs",
-  "fix": "TBD / team decision (do not alter the image on paper only)",
+  "fix": "Make S-1.6, the body and Appendix B show one confirmation fee (value: TBD-1)",
   "severity": "high"
  },
  "R-004": {
@@ -24,15 +24,55 @@
   "evidence": "the late fee appears only in Appendix B p14; searched 'late fee' in pages 1-13"
  },
  "F-001": {
-  "result": "❌",
-  "evidence": "p3 FR-3: collected by the International Office; reference AS-IS: Finance Office",
-  "target_loc": "p3 FR-3",
+  "result": "⚖️",
+  "evidence": "p3 FR-3: collected by the International Office; reference AS-IS: Finance Office (TBD-3)",
   "issue": "Collecting office differs from the current situation",
-  "fix": "TBD: confirm whether the responsibility moves",
-  "severity": "medium"
+  "fix": "TBD-3"
  },
  "F-002": {
   "result": "❓",
   "evidence": "the target says nothing about keeping a receipt (searched 'receipt', all 14 pages)"
+ },
+ "R-005": {
+  "result": "❌",
+  "evidence": "p12 S-1.5 profile shows the name only; no e-mail address on any page",
+  "target_loc": "p12 S-1.5",
+  "issue": "E-mail address absent",
+  "fix": "Add the coordinator's e-mail address to S-1.5",
+  "severity": "medium"
+ },
+ "R-006": {
+  "result": "❌",
+  "evidence": "p12 S-1.5 profile shows the name only; no office room on any page",
+  "target_loc": "p12 S-1.5",
+  "issue": "Office room absent",
+  "fix": "Add the coordinator's office room to S-1.5",
+  "severity": "low"
+ },
+ "R-007": {
+  "result": "⚠️",
+  "evidence": "p12 S-1.5 contact details: name present, see R-005 and R-006",
+  "target_loc": "p12 S-1.5",
+  "issue": "Missing contact details: e-mail address and office room",
+  "fix": "Complete the contact details (R-005, R-006)",
+  "severity": "medium",
+  "members": [
+   "R-005",
+   "R-006"
+  ]
+ },
+ "R-008": {
+  "result": "⚖️",
+  "evidence": "the reference section 6 says both 10 days and 14 days; the target states no payment term, so due within 10 days cannot be judged (TBD-2)",
+  "fix": "TBD-2"
+ },
+ "R-009": {
+  "result": "⚖️",
+  "evidence": "the reference section 6 says both 10 days and 14 days; the target states no payment term, so due within 14 days cannot be judged (TBD-2)",
+  "fix": "TBD-2"
+ },
+ "F-003": {
+  "result": "❓",
+  "evidence": "the target does not mention who answers questions outside office hours (all 14 pages read); open in the reference too"
  }
 }
