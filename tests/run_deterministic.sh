@@ -19,6 +19,10 @@ sc prefixes.py s1/ex/target_srs.txt s1/ex/rules.txt -o s1/prefixes.json | head -
 for st in reference visual self-rules; do
   sc progress.py step s1/progress.json $st skipped --reason "scenario 1 tests the rule matrix; this gate is tested in scenario 1c" | tail -1
 done
+sc progress.py step s1/progress.json identity skipped --reason "scenario 1: the user names no document, so there is no identity input" | tail -1
+sc param_check.py scan --target s1/ex/target_srs.txt --ref s1/ex/rules.txt -o s1/params.json | head -1
+sc param_check.py verdict s1/param_verdicts.json "$S1/param_part.json"
+cp "$S1/internal.json" s1/
 sc matrix.py skeleton s1/rules.json s1/ex/target_srs.txt -o s1/matrix
 cp "$S1/part_01.json" "$S1/part_02.json" "$S1/internal.md" "$S1/per_person.md" s1/
 sc matrix.py set-bulk s1/results.json s1/part_01.json >/dev/null

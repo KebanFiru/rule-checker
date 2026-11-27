@@ -19,7 +19,7 @@ python3 $S/matrix.py status work/rules.json work/results.json
 ```
 
 ## Steps (in order, WITHOUT skipping)
-A step you cannot do: `python3 $S/progress.py step work/progress.json <step> skipped --reason "…"`. MANDATORY (`verify` fails if not run and not skipped with a reason; step names): `reference`, `visual`, `self-rules`, `self-audit`.
+A step you cannot do: `python3 $S/progress.py step work/progress.json <step> skipped --reason "…"`. MANDATORY (`verify` fails if not run and not skipped with a reason; step names): `identity`, `reference`, `visual`, `params`, `self-rules`, `internal`, `self-audit`.
 
 **E. Environment** (always first, one command) — tell the user which checks cannot run here.
 ▶ On starting this step read only: `reference/steps/e-environment.md`

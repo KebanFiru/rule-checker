@@ -167,14 +167,16 @@ judged("new violation not re-checked", lambda r, w: r["R-004"].update(result="âš
 rules3 = J("rules.json")["rules"]
 # ---------- mandatory steps ----------
 GATES = {"reference": ("Reference coverage", ["ref_sections.json"]), "visual": ("Visual coverage", ["visual_inventory.json", "visual_log.json"]),
-         "self-rules": ("Target's own rules", ["self_sections.json", "self_rules.json", "self_results.json"])}
+         "self-rules": ("Target's own rules", ["self_sections.json", "self_rules.json", "self_results.json"]),
+         "identity": ("Document identity", ["doc_identity.json"]), "params": ("Parameter conflicts", ["params.json", "param_verdicts.json"]),
+         "internal": ("Internal findings", ["internal.json"])}
 
 
 def without(w, steps):
     for step in steps:
         for n in GATES[step][1]:
             (w / n).unlink()
-    if "self-rules" in steps:
+    if "self-rules" in steps and (w / "internal.json").exists():
         rewrite(w, "internal.json", lambda x: [f.pop("self_rules", None) and f.setdefault("no_rule_reason", "test") for f in x] and None)
 
 
@@ -207,8 +209,13 @@ code, out, top = gate_run([], skips=[], also_delete=["self_audit.json"], extra=l
 line("mandatory self-audit: skipped with a reason passes, counted once", (code, "- Self-audit: SKIPPED (no time)" in top, "- Skipped checks: 1" in top), (0, True, True))
 code, out, top = gate_run(["visual"], extra=lambda w: rewrite(w, "progress.json", lambda x: x["steps"].update(visual={"state": "skipped", "reason": " "})))
 line("mandatory: a skip without a reason is rejected", (code != 0, "Visual coverage not run" in out), (True, True))
-code, out, top = gate_run(list(GATES), skips=[(k, f"why {k}") for k in GATES], also_delete=["params.json", "doc_identity.json"])
-line("all three skipped with reasons; optional steps shown as NOT RUN and counted", (code, top.count(": SKIPPED ("), top.count(": NOT RUN"), "- Skipped checks: 5" in top), (0, 3, 2, True))
+code, out, top = gate_run(list(GATES), skips=[(k, f"why {k}") for k in GATES])
+line("all six file-based steps skipped with reasons: accepted, none shown as NOT RUN",
+     (code, top.count(": SKIPPED ("), top.count(": NOT RUN"), "- Skipped checks: 6" in top), (0, 6, 0, True))
+code, out, top = gate_run(list(GATES))
+line("all six missing without a reason: each one rejected", sum(f"{label} not run" in out for label, _ in GATES.values()), 6)
+code, out, top = gate_run([], extra=lambda w: (w / "internal.json").write_text("[]", encoding="utf-8"))
+line("empty internal findings list counts as run (own-rule violations still need a finding)", ("Internal findings not run" in out, "SD-001: the target breaks its own rule" in out), (False, True))
 with tempfile.TemporaryDirectory() as t:                      # the summary itself stays mandatory
     w = Path(t) / "w"; shutil.copytree(d, w, symlinks=True)
     p = w / "report.md"; p.write_text("# R\n\n## Summary" + p.read_text(encoding="utf-8").split("## Summary", 1)[1], encoding="utf-8")

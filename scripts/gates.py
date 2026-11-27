@@ -1,7 +1,8 @@
 """Coverage gates used by matrix.py: every count in the report is computed HERE from the files in the work folder, and verify
 recomputes it. A step counts as run when its file exists; files are discovered in the work folder (the folder of rules.json), so a
 check cannot be left out by forgetting a flag.
-Reference coverage, the visual inventory, the self-rule scan and the self-audit are MANDATORY: without their file, verify fails unless
+Document identity, reference coverage, the visual inventory, the parameter check, the self-rule scan, the internal findings and the
+self-audit are MANDATORY: without their file, verify fails unless
 progress.json records the step as skipped with a reason (shown and counted at the top of the report).
 
   visual_inventory.json + visual_log.json     visual coverage
@@ -56,7 +57,7 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
         if assumed:
             summary.append(f"- Circular check: {len(assumed)} rule(s)/fact(s) come from the target itself and are marked «{ASSUMPTION}»: {', '.join(sorted(assumed))}")
     else:
-        summary.append("- Document identity: NOT RUN (section_inventory.py identity)"); skipped.append(("document identity", "step not run", 1))
+        missing_gate("identity", "Document identity", "section_inventory.py identity")
 
     ref = read(work, "ref_sections.json")
     if ref:
@@ -121,7 +122,7 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
             required.append(f"| {r['id']} |")
         sections += [f"- {n}" for n in params["notes"]] + [""]
     else:
-        summary.append("- Parameter conflicts: NOT RUN (param_check.py scan)"); skipped.append(("parameter consistency", "step not run", 1))
+        missing_gate("params", "Parameter conflicts", "param_check.py scan")
 
     judged = judgement.collect(work, rules, results, patterns, report_text)
     errors += judged["errors"]; sections += judged["sections"]; skipped += judged["skipped"]
@@ -129,7 +130,8 @@ def collect(work, rules, results, env_path=None, patterns=None, report_text=None
     env = json.loads(Path(env_path).read_text(encoding="utf-8")) if env_path else read(work, "env.json")
     if env:
         skipped += [("environment", u, 1) for u in env.get("unavailable_checks", [])]
-    listed = {k for k, label in (("reference", "ref_sections.json"), ("visual", "visual_inventory.json"), ("self-rules", "self_sections.json"))
+    listed = {k for k, label in (("identity", "doc_identity.json"), ("reference", "ref_sections.json"), ("visual", "visual_inventory.json"),
+                                 ("params", "params.json"), ("self-rules", "self_sections.json"), ("internal", "internal.json"))
               if not (Path(work) / label).exists()} | {"self-audit"}          # a missing mandatory step is already counted above
     skipped += [(f"step {k}", v["reason"], 1) for k, v in state["steps"].items() if v["state"] == "skipped" and k not in listed]
     summary.append(f"- Skipped checks: {sum(n for *_, n in skipped)}")

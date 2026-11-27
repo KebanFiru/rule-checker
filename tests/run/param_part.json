@@ -1,0 +1,10 @@
+{
+ "P:password-length:length": {
+  "verdict": "real",
+  "note": "FR-2 (p1:L15) says 6 characters, Rule 12 says at least 8 (R-012)"
+ },
+ "P:session-timeout:time": {
+  "verdict": "real",
+  "note": "FR-3 (p1:L16) says 30 minutes, Rule 13 says 15 (R-013)"
+ }
+}

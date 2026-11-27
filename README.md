@@ -18,7 +18,7 @@ Asked to "check this document against that rules PDF", a model tends to find a f
 - a document you named was replaced by a section of the target without saying so,
 - a "section X is missing" finding hides the single missing items, or an absent open question is marked "not applicable",
 - evidence points to a rule or decision that does not exist, a ❌ needs no change, or a contradiction inside the target is not written on the rules it concerns,
-- reference coverage, the visual inventory, the scan for the target's own rules or the self-audit was not run and no reason for skipping it was recorded,
+- one of the mandatory steps (document identity, reference coverage, visual inventory, parameter check, own-rule scan, internal findings, self-audit) was not run and no reason for skipping it was recorded,
 - the final self-audit (every finding and a random 10% of the compliant rows, re-read against the source; the seed is printed in the report) is unfinished.
 
 The rules your target declares about itself (e.g. `IC-1` consistency rules) are checked against the whole document in a separate section, so they never inflate the reference coverage.

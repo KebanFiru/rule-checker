@@ -117,7 +117,7 @@
  },
  "R-020": {
   "result": "❌",
-  "evidence": "p1:L25 Table 2 «250 USD»; p2:L3 uses € (mixed)",
+  "evidence": "p1:L25 Table 2 «250 USD»; p2:L3 uses € (mixed) (IF-3)",
   "target_loc": "p1:L25 Table 2",
   "issue": "Amount is in USD",
   "fix": "Show in € (amount: TBD, do not invent an exchange rate)",

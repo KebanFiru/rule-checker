@@ -8,3 +8,5 @@ Classify each file: target / reference / review. If unsure, ask the user; if the
 - `missing`: neither. Ask; otherwise it is counted as a skipped check.
 
 **Own ID prefixes.** Right after `extract.py`, run `prefixes.py work/ex/*.txt` on the target AND every reference. If a document already uses `R`, `F`, `TBD` or `IF` as an ID prefix (hyphenated or not, e.g. risk rows "R7"), that kind switches to `RC-R-`, `RC-F-`, `RC-TBD-` or `RC-IF-`. Use the chosen prefixes in EVERY work file (register, results, `tbd.json`, `internal.json`); wherever these instructions write `R-`, `F-`, `TBD-`, `IF-`, they mean the chosen ones. The choice is stated at the top of the report and `verify` enforces it. IDs that appear only inside images are not detected: if you see one that collides, tell the user.
+
+The identity step is mandatory. If the user named no document at all, record it: `progress.py step work/progress.json identity skipped --reason "the user named no document"`.

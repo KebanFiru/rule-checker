@@ -5,7 +5,7 @@
  },
  "R-022": {
   "result": "❌",
-  "evidence": "FR-5 (p1:L18) has no UC reference; FR-4 points to UC-9.9, which does not exist (see internal consistency)",
+  "evidence": "FR-5 (p1:L18) has no UC reference; FR-4 points to UC-9.9, which does not exist (see internal consistency) (IF-4)",
   "target_loc": "p1:L18 FR-5",
   "issue": "No UC traceability",
   "fix": "Link FR-5 to the relevant UC (add the UC if missing: TBD)",

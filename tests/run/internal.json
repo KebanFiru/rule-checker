@@ -1,0 +1,53 @@
+[
+ {
+  "id": "IF-1",
+  "text": "Figure 1 is captioned as the sign-in screen of UC-1.1 but the image shows UC-1.2 Change Password",
+  "ids": [
+   "Figure 1",
+   "UC-1.1",
+   "UC-1.2"
+  ],
+  "rules": [],
+  "no_rule_reason": "no reference rule requires caption and image to agree"
+ },
+ {
+  "id": "IF-2",
+  "text": "Figure 2 caption says 100 € while the image shows 120 €",
+  "ids": [
+   "Figure 2"
+  ],
+  "rules": [],
+  "no_rule_reason": "no reference rule requires caption and image to agree"
+ },
+ {
+  "id": "IF-3",
+  "text": "Mixed currencies: Table 2 gives 250 USD, the payment screen uses euros",
+  "ids": [
+   "Table 2"
+  ],
+  "rules": [
+   "R-020"
+  ]
+ },
+ {
+  "id": "IF-4",
+  "text": "FR-4 points to UC-9.9, which is not defined",
+  "ids": [
+   "FR-4",
+   "UC-9.9"
+  ],
+  "rules": [
+   "R-022"
+  ]
+ },
+ {
+  "id": "IF-5",
+  "text": "References to FR-14 and Table 5, which do not exist",
+  "ids": [
+   "FR-14",
+   "Table 5"
+  ],
+  "rules": [],
+  "no_rule_reason": "no reference rule about broken references"
+ }
+]

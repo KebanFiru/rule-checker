@@ -275,7 +275,7 @@ def self_register(work):
 
 
 # ---------- mandatory steps ----------
-MANDATORY = ("reference", "visual", "self-rules", "self-audit")          # step names for progress.py
+MANDATORY = ("identity", "reference", "visual", "params", "self-rules", "internal", "self-audit")          # step names for progress.py
 
 
 def skip_reason(state, step):
@@ -380,7 +380,9 @@ def collect(work, rules, res, patterns_file=None, report_text=None):
         out["sections"] += ["## Open decisions (TBD)", *lines, ""]; out["required"] += lines
 
     if findings is None:
-        out["summary"].append("- Internal findings: NOT RUN (work/internal.json)"); out["skipped"].append(("internal findings bound to rules", "step not run", 1))
+        line, entry, error = missing_step(read(work, "progress.json") or {}, "internal", "Internal findings", "step 4 (work/internal.json, [] if there are none)")
+        out["summary"].append(line); out["skipped"].append(entry)
+        if error: out["errors"].append(error)
     else:
         errs, w = check_internal(findings, rules, res, patterns, keywords, params, verdicts, own, mine, mine_res); out["errors"] += errs; warnings += w
         bound = sum(1 for f in findings if f.get("rules") or f.get("self_rules"))
